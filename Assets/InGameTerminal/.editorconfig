@@ -1,0 +1,28 @@
+root = true
+[*]
+end_of_line = crlf
+indent_size = 4
+indent_style = tab
+trim_trailing_whitespace = true
+
+[*.cs]
+# The private field is never used
+dotnet_diagnostic.CS0169.severity = none
+# Field is never assigned to and will always have its default value
+dotnet_diagnostic.CS0649.severity = none
+# Use coalesce expression (non-nullable types)
+dotnet_diagnostic.IDE0029.severity = none
+# Use coalesce expression (nullable types)
+dotnet_diagnostic.IDE0030.severity = none
+# Use null propagation
+dotnet_diagnostic.IDE0031.severity = none
+# Add readonly modifier
+dotnet_diagnostic.IDE0044.severity = none
+# Remove unused private member
+dotnet_diagnostic.IDE0051.severity = none
+# Use coalesce compound assignment
+dotnet_diagnostic.IDE0074.severity = none
+# Null check can be simplified
+dotnet_diagnostic.IDE0270.severity = none
+# Use conditional delegate call
+dotnet_diagnostic.IDE1005.severity = none

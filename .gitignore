@@ -1,0 +1,24 @@
+/Build/
+/InGameTerminal/Assets/Assemblies/**
+!/InGameTerminal/Assets/Assemblies/*.dll.meta
+/unitypath.txt
+/msbuildpath.txt
+*.log
+
+# Operating System
+desktop.ini
+desktop.ini.meta
+
+# Unity
+/InGameTerminal\.sln
+/*.csproj
+/Assets/Unity.VisualScripting.Generated*
+/Library/
+/Logs/
+/Temp/
+/UserSettings/
+
+# Visual Studio
+.vs/
+bin/
+obj/
