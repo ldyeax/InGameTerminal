@@ -1,0 +1,102 @@
+body {
+    background: #fff none;
+    color: #000;
+    font-family: sans-serif;
+    line-height: 150%;
+}
+
+/* This is the mobile & universal stuff. */
+table { border-collapse: collapse; margin: 1em 0 }
+caption { padding: 0.5em; text-align: left; font-weight: bolder }
+/* Some huge tables have "repeater" headers or sub-heads,
+ * <tr class="th"> that need to align as if they were in thead.
+ */
+thead tr,
+tbody tr.th { vertical-align: bottom }
+tbody tr,
+tfoot tr { vertical-align: top }
+th { text-align: left }
+th, td { padding: 0.2em 0.5em }
+
+/* Images and inlined SVGs should be constrained to document width */
+img, svg { max-width: 100%; height: auto }
+
+/* end of universal */
+
+/* Site style */
+header { border-bottom: thin solid black; padding: 0 0 0.5em 0 }
+footer { border-top: thin solid black; padding: 0.5em 0 0 0 }
+
+/* Site logo has one pixel underneath the text, for alignment with the terminal icon,
+ * so align the text with following text. */
+#vt100-net-site-logo {
+    display: inline-block;
+    position: relative;
+    bottom: -1px
+}
+
+/* Used for manuals */
+nav.sections a { display: inline-block; width: 33.3%; margin: 0.5em 0 }
+nav.sections a:nth-child(1) { text-align: left }
+nav.sections a:nth-child(2) { text-align: center }
+nav.sections a:nth-child(3) { text-align: right }
+
+h1 { line-height: 150% }
+
+p { margin: 0 0 1em 0 }
+
+/*td,th { line-height: 1.5em }*/
+caption { font-weight: bolder; text-align: left; color: #66c }
+.keyname { font-style: normal; font-weight: bolder }
+.settings { list-style: none; margin-left: 2em; margin-top: 0em }
+.note { font-style: italic }
+.majorstep { font-size: larger; font-weight: bolder; color: #396 }
+.goto { text-align: center; font-weight: bolder }
+code { font-weight: bolder; font-family: sans-serif; font-size: 1em }
+.tt { font-family: monospace }
+/* strong { color: #f00 }*/
+/* tfoot { background: #cfc none } */
+.figure { margin-left: auto; margin-right: auto }
+.figure caption { caption-side: bottom; text-align: center }
+/*h1 { background: #ccc none; padding: 1em; border: thin solid black; text-align: right; line-height: 1.5em }*/
+.chapnum { color: #66c; font-size: 2.5em; font-family: "Book Antiqua", Bookman, Garamond, serif }
+.rev { background: #000 none; color: #fff }
+kbd { font-weight: bolder }
+.nodisplay { display: none }
+.feature { font-style: normal; font-weight: bolder }
+.setting { font-style: normal } /* eg. p.29 in note */
+li { margin-top: 1em; margin-bottom: 1em }
+.majortable { border-collapse: collapse; background: #ddd none; margin-top: 1em; margin-bottom: 1em }
+.majortable caption { background: #ddd none; font-weight: bolder; text-align: left; border-bottom: thin solid white; }
+.contents ul { list-style-type: none; margin-left: 0em }
+.contents ul ul { margin-left: 2em }
+.contents li { margin: 0 }
+.identity { margin-top: 0px; text-align: right; }
+.bit { font-size: xx-small; }
+.c0c,.c1c { text-align: center; }
+.c0n,.c1n { text-align: right; font-size: xx-small; }
+.glc,.grc { text-align: center; }
+.gln,.grn { text-align: right; font-size: xx-small; }
+.booktitle { background: #fff none; padding: 0em; border: none; text-align: center }
+.bookcover, .contentslink { text-align: center }
+a:link { color: #00f }
+a:visited { color: #909 }
+a:active { color: #f00 }
+.button { border: none }
+ol.alpha { list-style: lower-alpha }
+table.majortable tr:last-child td { border-bottom: thin solid white }
+table.majortable tr:last-child th { border-bottom: thin solid white }
+table.majortable tr:first-child td { border-top: thin solid white }
+table.majortable tr:first-child th { border-top: thin solid white }
+table.majortable td,
+table.majortable th { padding: 4px }
+
+.collist td { padding: 0 1em; width: 30% }
+.spectable td:first-child { width: 12em }
+.spectable td { padding-right: 2em }
+
+#f3-3-img1, #f3-3-img2 { max-width: 20em} /* editing and numeric keypads */
+
+/* Testing */
+/*figure { background-color: #ffe0e0 }
+figcaption { color: red; font-weight: bolder } */

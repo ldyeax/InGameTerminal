@@ -31,322 +31,70 @@ namespace InGameTerminal
 	public class TerminalRenderer : MonoBehaviour
 	{
 		private ITerminalDefinition _terminalDefinition;
-		private struct TerminalBufferValue
-		{
-			private ITerminalDefinition _terminalDefinition;
-			public TerminalBufferValue(ITerminalDefinition terminalDefinition)
-			{
-				_terminalDefinition = terminalDefinition;
-				AtlasX = 0;
-				AtlasY = 0;
-				ConnectorID = 0;
-				Italic = false;
-				Bold = false;
-				Underline = false;
-				Inverted = false;
-				Blink = false;
-			}
-			public readonly char GetChar(ITerminalDefinition terminalDefinition)
-			{
-				return terminalDefinition.XYToChar(AtlasX, AtlasY);
-			}
-			public void SetChar(ITerminalDefinition terminalDefinition, char c)
-			{
-				Vector2Int charXY = terminalDefinition.CharToXY(c);
-				AtlasX = charXY.x;
-				AtlasY = charXY.y;
-			}
-			public int AtlasX;
-			public int AtlasY;
-			public int ConnectorID;
-			public bool Italic;
-			public bool Bold;
-			public bool Underline;
-			public bool Inverted;
-			public bool Blink;
-			public static bool operator ==(TerminalBufferValue a, TerminalBufferValue b)
-			{
-				return
-					a.ConnectorID == b.ConnectorID &&
-					a.Italic == b.Italic &&
-					a.Bold == b.Bold &&
-					a.Underline == b.Underline &&
-					a.Inverted == b.Inverted &&
-					a.Blink == b.Blink;
-			}
-			public static bool operator !=(TerminalBufferValue a, TerminalBufferValue b)
-			{
-				return !(a == b);
-			}
-			public override readonly bool Equals(object obj)
-			{
-				if (obj is TerminalBufferValue other)
-				{
-					return this == other;
-				}
-				return false;
-			}
-			public override readonly int GetHashCode()
-			{
-				return base.GetHashCode();
-			}
-		}
 
-		private TerminalBufferValue[,] terminalBuffer = null;
-		private TerminalBufferValue[,] previousTerminalBuffer = null;
-
-		enum TerminalCommandType
-		{
-			Char = 0,
-			Up,
-			Down,
-			Left,
-			Right,
-			MoveTo,
-			CarriageReturn,
-			LineFeed,
-			Italic,
-			Bold,
-			Underline,
-			Invert,
-			Blink,
-			EL,
-			EraseInDisplay,
-			HomeCursor,
-		}
-		struct TerminalCommand
-		{
-			public char Char;
-			public TerminalCommandType CommandType;
-			public int X;
-			public int Y;
-		}
-
-		private void ActualizeConnectedLinesToBuffer()
-		{
-			for (int y = 0; y < terminal.Height; y++)
-			{
-				for (int x = 0; x < terminal.Width; x++)
-				{
-					ref TerminalBufferValue cell = ref terminalBuffer[x, y];
-					if (cell.ConnectorID != 0)
-					{
-						int aboveID = 0;
-						if (y > 0)
-						{
-							aboveID = terminalBuffer[x, y - 1].ConnectorID;
-						}
-						int belowID = 0;
-						if (y < terminal.Height - 1)
-						{
-							belowID = terminalBuffer[x, y + 1].ConnectorID;
-						}
-						int leftID = 0;
-						if (x > 0)
-						{
-							leftID = terminalBuffer[x - 1, y].ConnectorID;
-						}
-						int rightID = 0;
-						if (x < terminal.Width - 1)
-						{
-							rightID = terminalBuffer[x + 1, y].ConnectorID;
-						}
-
-						bool matchAbove = aboveID == cell.ConnectorID;
-						bool matchBelow = belowID == cell.ConnectorID;
-						bool matchLeft = leftID == cell.ConnectorID;
-						bool matchRight = rightID == cell.ConnectorID;
-
-						if (matchAbove)
-						{
-							if (matchBelow)
-							{
-								if (matchLeft)
-								{
-									if (matchRight)
-									{
-										// All four directions
-										cell.AtlasX = _terminalDefinition.CrossX;
-										cell.AtlasY = _terminalDefinition.CrossY;
-									}
-									else
-									{
-										// Above, below, left (no right) - LeftTee
-										cell.AtlasX = _terminalDefinition.LeftTeeX;
-										cell.AtlasY = _terminalDefinition.LeftTeeY;
-									}
-								}
-								else if (matchRight)
-								{
-									// Above, below, right (no left) - RightTee
-									cell.AtlasX = _terminalDefinition.RightTeeX;
-									cell.AtlasY = _terminalDefinition.RightTeeY;
-								}
-								else
-								{
-									// Above and below only - Vertical line
-									cell.AtlasX = _terminalDefinition.VerticalLineX;
-									cell.AtlasY = _terminalDefinition.VerticalLineY;
-								}
-							}
-							else // no below
-							{
-								if (matchLeft)
-								{
-									if (matchRight)
-									{
-										// Above, left, right (no below) - UpTee
-										cell.AtlasX = _terminalDefinition.UpTeeX;
-										cell.AtlasY = _terminalDefinition.UpTeeY;
-									}
-									else
-									{
-										// Above, left (no below, no right) - BottomRightCorner
-										cell.AtlasX = _terminalDefinition.BottomRightCornerX;
-										cell.AtlasY = _terminalDefinition.BottomRightCornerY;
-									}
-								}
-								else if (matchRight)
-								{
-									// Above, right (no below, no left) - BottomLeftCorner
-									cell.AtlasX = _terminalDefinition.BottomLeftCornerX;
-									cell.AtlasY = _terminalDefinition.BottomLeftCornerY;
-								}
-								else
-								{
-									// Above only - Vertical line
-									cell.AtlasX = _terminalDefinition.VerticalLineX;
-									cell.AtlasY = _terminalDefinition.VerticalLineY;
-								}
-							}
-						}
-						else // no above
-						{
-							if (matchBelow)
-							{
-								if (matchLeft)
-								{
-									if (matchRight)
-									{
-										// Below, left, right (no above) - DownTee
-										cell.AtlasX = _terminalDefinition.DownTeeX;
-										cell.AtlasY = _terminalDefinition.DownTeeY;
-									}
-									else
-									{
-										// Below, left (no above, no right) - TopRightCorner
-										cell.AtlasX = _terminalDefinition.TopRightCornerX;
-										cell.AtlasY = _terminalDefinition.TopRightCornerY;
-									}
-								}
-								else if (matchRight)
-								{
-									// Below, right (no above, no left) - TopLeftCorner
-									cell.AtlasX = _terminalDefinition.TopLeftCornerX;
-									cell.AtlasY = _terminalDefinition.TopLeftCornerY;
-								}
-								else
-								{
-									// Below only - Vertical line
-									cell.AtlasX = _terminalDefinition.VerticalLineX;
-									cell.AtlasY = _terminalDefinition.VerticalLineY;
-								}
-							}
-							else // no above, no below
-							{
-								if (matchLeft)
-								{
-									if (matchRight)
-									{
-										// Left and right only - Horizontal line
-										cell.AtlasX = _terminalDefinition.HorizontalLineX;
-										cell.AtlasY = _terminalDefinition.HorizontalLineY;
-									}
-									else
-									{
-										// Left only - Horizontal line
-										cell.AtlasX = _terminalDefinition.HorizontalLineX;
-										cell.AtlasY = _terminalDefinition.HorizontalLineY;
-									}
-								}
-								else if (matchRight)
-								{
-									// Right only - Horizontal line
-									cell.AtlasX = _terminalDefinition.HorizontalLineX;
-									cell.AtlasY = _terminalDefinition.HorizontalLineY;
-								}
-								else
-								{
-									// No matches - default to vertical line
-									cell.AtlasX = _terminalDefinition.VerticalLineX;
-									cell.AtlasY = _terminalDefinition.VerticalLineY;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+		private TerminalState terminalState;
+		private bool firstUpdate = true;
+		private List<TerminalCommand> terminalCommands = new List<TerminalCommand>();
 
 		[SerializeField]
 		private Terminal terminal;
-		List<TerminalCommand> terminalCommands = new List<TerminalCommand>();
-		private void BuildTerminalCommands()
-		{
-			terminalCommands.Clear();
-			terminalCommands.Add(new TerminalCommand()
-			{
-				CommandType = TerminalCommandType.HomeCursor
-			});
-			if (firstUpdate)
-			{
-				terminalCommands.Add(new TerminalCommand()
-				{
-					CommandType = TerminalCommandType.EraseInDisplay
-				});
-				return;
-			}
+// 		List<TerminalCommand> terminalCommands = new List<TerminalCommand>();
+		//private void BuildTerminalCommands()
+		//{
+		//	terminalCommands.Clear();
+		//	terminalCommands.Add(new TerminalCommand()
+		//	{
+		//		CommandType = TerminalCommandType.HomeCursor
+		//	});
+		//	if (firstUpdate)
+		//	{
+		//		terminalCommands.Add(new TerminalCommand()
+		//		{
+		//			CommandType = TerminalCommandType.EraseInDisplay
+		//		});
+		//		return;
+		//	}
 
-			Vector2Int cursorPosition = default;
+		//	Vector2Int cursorPosition = default;
 			
-			for (int y = 0; y < terminal.Height; y++)
-			{
-				for (int x = 0; x < terminal.Width; x++)
-				{
-					var cell = terminalBuffer[x, y];
-					var previousCell = previousTerminalBuffer[x, y];
-					if (cell != previousCell)
-					{
-						Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(_terminalDefinition)}' to '{cell.GetChar(_terminalDefinition)}'");
-						if (cursorPosition.x != x || cursorPosition.y != y)
-						{
-							terminalCommands.Add(new TerminalCommand()
-							{
-								CommandType = TerminalCommandType.MoveTo,
-								X = x,
-								Y = y
-							});
-						}
-						terminalCommands.Add(new TerminalCommand()
-						{
-							Char = cell.GetChar(_terminalDefinition),
-							X = x,
-							Y = y
-						});
-						cursorPosition.x++;
-						if (cursorPosition.x > terminal.Width)
-						{
-							cursorPosition.x = 0;
-							cursorPosition.y++;
-						}
-						if (cursorPosition.y > terminal.Height)
-						{
-							cursorPosition.y = 0;
-						}
-					}
-				}
-			}
-		}
+		//	for (int y = 0; y < terminal.Height; y++)
+		//	{
+		//		for (int x = 0; x < terminal.Width; x++)
+		//		{
+		//			var cell = terminalBuffer[x, y];
+		//			var previousCell = previousTerminalBuffer[x, y];
+		//			if (cell != previousCell)
+		//			{
+		//				//Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(_terminalDefinition)}' to '{cell.GetChar(_terminalDefinition)}'");
+		//				if (cursorPosition.x != x || cursorPosition.y != y)
+		//				{
+		//					terminalCommands.Add(new TerminalCommand()
+		//					{
+		//						CommandType = TerminalCommandType.MoveTo,
+		//						X = x,
+		//						Y = y
+		//					});
+		//				}
+		//				terminalCommands.Add(new TerminalCommand()
+		//				{
+		//					Char = cell.GetChar(_terminalDefinition),
+		//					X = x,
+		//					Y = y
+		//				});
+		//				cursorPosition.x++;
+		//				if (cursorPosition.x > terminal.Width)
+		//				{
+		//					cursorPosition.x = 0;
+		//					cursorPosition.y++;
+		//				}
+		//				if (cursorPosition.y > terminal.Height)
+		//				{
+		//					cursorPosition.y = 0;
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 
 		
 		private Canvas _unityCanvas;
@@ -365,7 +113,6 @@ namespace InGameTerminal
 
 		#region mesh
 		private Mesh _mesh;
-		private bool forceRedraw = false;
 		private void InitMesh()
 		{
 			_mesh.Clear();
@@ -478,191 +225,12 @@ namespace InGameTerminal
 		}
 		#endregion mesh
 
-		#region Draw x to buffer
-		private void DrawHorizontalLineToBuffer(
-			int terminalY,
-			int startTerminalX,
-			int endTerminalX,
-			int connectorID = 0
-		)
-		{
-			for (int x = startTerminalX; x <= endTerminalX; x++)
-			{
-				ref TerminalBufferValue cell = ref terminalBuffer[x, terminalY];
-				cell.AtlasX = _terminalDefinition.HorizontalLineX;
-				cell.AtlasY = _terminalDefinition.HorizontalLineY;
-				cell.ConnectorID = connectorID;
-			}
-		}
-
-		private void DrawVerticalLineToBuffer(
-			int terminalX,
-			int startTerminalY,
-			int endTerminalY,
-			int connectorID = 0
-		)
-		{
-			for (int y = startTerminalY; y <= endTerminalY; y++)
-			{
-				ref TerminalBufferValue cell = ref terminalBuffer[terminalX, y];
-				cell.AtlasX = _terminalDefinition.VerticalLineX;
-				cell.AtlasY = _terminalDefinition.VerticalLineY;
-				cell.ConnectorID = connectorID;
-			}
-		}
-
-		private void DrawTopLeftCornerToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.TopLeftCornerX;
-			cell.AtlasY = _terminalDefinition.TopLeftCornerY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawTopRightCornerToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.TopRightCornerX;
-			cell.AtlasY = _terminalDefinition.TopRightCornerY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawBottomLeftCornerToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.BottomLeftCornerX;
-			cell.AtlasY = _terminalDefinition.BottomLeftCornerY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawBottomRightCornerToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.BottomRightCornerX;
-			cell.AtlasY = _terminalDefinition.BottomRightCornerY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawLeftTeeToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.LeftTeeX;
-			cell.AtlasY = _terminalDefinition.LeftTeeY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawRightTeeToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.RightTeeX;
-			cell.AtlasY = _terminalDefinition.RightTeeY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawUpTeeToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.UpTeeX;
-			cell.AtlasY = _terminalDefinition.UpTeeY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawDownTeeToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.DownTeeX;
-			cell.AtlasY = _terminalDefinition.DownTeeY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawCrossToBuffer(
-			int terminalX,
-			int terminalY,
-			int connectorID = 0
-		)
-		{
-			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
-			cell.AtlasX = _terminalDefinition.CrossX;
-			cell.AtlasY = _terminalDefinition.CrossY;
-			cell.ConnectorID = connectorID;
-		}
-
-		private void DrawBoxToBuffer(
-			int startTerminalX,
-			int startTerminalY,
-			int endTerminalX,
-			int endTerminalY,
-			int connectorID = -1
-		)
-		{
-			// Draw horizontal lines
-			DrawHorizontalLineToBuffer(startTerminalY, startTerminalX + 1, endTerminalX - 1, connectorID);
-			DrawHorizontalLineToBuffer(endTerminalY, startTerminalX + 1, endTerminalX - 1, connectorID);
-			
-			// Draw vertical lines
-			DrawVerticalLineToBuffer(startTerminalX, startTerminalY + 1, endTerminalY - 1, connectorID);
-			DrawVerticalLineToBuffer(endTerminalX, startTerminalY + 1, endTerminalY - 1, connectorID);
-			
-			// Draw corners
-			DrawTopLeftCornerToBuffer(startTerminalX, startTerminalY, connectorID);
-			DrawTopRightCornerToBuffer(endTerminalX, startTerminalY, connectorID);
-			DrawBottomLeftCornerToBuffer(startTerminalX, endTerminalY, connectorID);
-			DrawBottomRightCornerToBuffer(endTerminalX, endTerminalY, connectorID);
-		}
-
-		private void DrawConnectedAreaToBuffer(
-			int startTerminalX,
-			int startTerminalY,
-			int endTerminalX,
-			int endTerminalY,
-			int connectorID
-		)
-		{
-			for (int y = startTerminalY; y <= endTerminalY; y++)
-			{
-				for (int x = startTerminalX; x <= endTerminalX; x++)
-				{
-					ref TerminalBufferValue cell = ref terminalBuffer[x, y];
-					cell.ConnectorID = connectorID;
-				}
-			}
-		}
-		#endregion Draw x to buffer
 
 		private void DrawBuffer()
 		{
+			ref var terminalBuffer = ref terminalState.terminalBuffer;
+			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
+
 			ref TerminalBufferValue testCell = ref terminalBuffer[0, 0];
 			testCell.SetChar(_terminalDefinition, '&');
 
@@ -688,10 +256,8 @@ namespace InGameTerminal
 			
 			// Force the canvas renderer to update
 			_canvasRenderer.SetMesh(_mesh);
-			
-			forceRedraw = false;
 		}
-		private void DrawTerminalCommands()
+		private void DrawTerminalCommands(List<TerminalCommand> terminalCommands)
 		{
 			Vector2Int position = default;
 			bool italic = false;
@@ -822,173 +388,10 @@ namespace InGameTerminal
 				}
 			}
 		}
-		private int nextConnectorID = 1;
-		private void BuildBufferFromChildren(RectTransform rectTransform, TerminalBufferValue currentState)
-		{
-			int childCount = rectTransform.childCount;
-			for (int i_outer = 0; i_outer < childCount; i_outer++)
-			{
-				var child = rectTransform.GetChild(i_outer);
-				if (!child.gameObject.activeInHierarchy)
-				{
-					continue;
-				}
-				var element = child.GetComponent<Element>();
-				Vector2Int position = element.GetTerminalPosition(_terminalDefinition);
-				RectInt bounds = element.GetTerminalBounds(_terminalDefinition);
+		
+		
 
-				if (bounds.x < 0 || bounds.xMax > terminal.Width || bounds.y < 0 || bounds.yMax > terminal.Height)
-				{
-					continue;
-				}
 
-				if (element is Elements.Text text)
-				{
-					string contents = text.Contents;
-					if (string.IsNullOrEmpty(contents))
-						continue;
-
-					for (int i = 0; i < contents.Length; i++)
-					{
-						char c = contents[i];
-
-						// Bounds check before writing
-						if (position.x < 0 || position.x >= terminal.Width ||
-							position.y < 0 || position.y >= terminal.Height)
-						{
-							Debug.Log("Bounds check");
-							goto endText;
-						}
-
-						ref TerminalBufferValue cell = ref terminalBuffer[
-							position.x,
-							position.y
-						];
-						cell.SetChar(_terminalDefinition, c);
-						cell.ConnectorID = 0;
-
-						position.x++;
-
-						// Wrap to next line if past the right edge of the element bounds
-						if (position.x >= bounds.xMax)
-						{
-							position.x = bounds.xMin;
-							position.y++;
-						}
-						// Stop if past the bottom edge of the element bounds
-						if (position.y >= bounds.yMax)
-						{
-							Debug.Log("Bounds check 2");
-							goto endText;
-						}
-					}
-				endText:
-					BuildBufferFromChildren(text.RectTransform, currentState);
-					continue;
-				}
-				if (element is Elements.HorizontalLine hline)
-				{
-					for (int y = bounds.yMin; y < bounds.yMax; y++)
-					{
-						for (int x = bounds.xMin; x < bounds.xMax; x++)
-						{
-							if (x < 0 || x >= terminal.Width || y < 0 || y >= terminal.Height)
-								goto endHorizontalLine;
-
-							ref TerminalBufferValue cell = ref terminalBuffer[
-								x,
-								y
-							];
-							cell.AtlasX = _terminalDefinition.HorizontalLineX;
-							cell.AtlasY = _terminalDefinition.HorizontalLineY;
-						}
-					}
-				endHorizontalLine:
-					BuildBufferFromChildren(hline.RectTransform, currentState);
-					continue;
-				}
-				if (element is ConnectedLinesGroup connectedLinesGroup)
-				{
-					currentState.ConnectorID = nextConnectorID++;
-					BuildBufferFromChildren(connectedLinesGroup.RectTransform, currentState);
-					continue;
-				}
-				if (element is ConnectedLine line)
-				{
-					for (int y = bounds.yMin; y < bounds.yMax; y++)
-					{
-						for (int x = bounds.xMin; x < bounds.xMax; x++)
-						{
-							if (x < 0 || x >= terminal.Width || y < 0 || y >= terminal.Height)
-								goto endConnectedLine;
-
-							ref TerminalBufferValue cell = ref terminalBuffer[x, y];
-							cell.ConnectorID = currentState.ConnectorID;
-							// Set initial glyph - will be resolved by ActualizeConnectedLinesToBuffer
-							cell.AtlasX = _terminalDefinition.HorizontalLineX;
-							cell.AtlasY = _terminalDefinition.HorizontalLineY;
-						}
-					}
-
-				endConnectedLine:
-					BuildBufferFromChildren(line.RectTransform, currentState);
-					continue;
-				}
-				if (element is Elements.Box box)
-				{
-					DrawBoxToBuffer(
-						bounds.xMin,
-						bounds.yMin,
-						bounds.xMax - 1,
-						bounds.yMax - 1
-					);
-					BuildBufferFromChildren(box.RectTransform, currentState);
-					continue;
-				}
-			}
-		}
-
-		private void SwapAndClearBuffer()
-		{
-			(terminalBuffer, previousTerminalBuffer) = (previousTerminalBuffer, terminalBuffer);
-			for (int y = 0; y < terminal.Height; y++)
-			{
-				for (int x = 0; x < terminal.Width; x++)
-				{
-					terminalBuffer[x, y] = default;
-				}
-			}
-		}
-		private void BuildBuffer()
-		{
-			if (firstUpdate)
-			{
-				for (int y = 0; y < terminal.Height; y++)
-				{
-					for (int x = 0; x < terminal.Width; x++)
-					{
-						ref TerminalBufferValue previousChar = ref previousTerminalBuffer[x, y];
-						ref TerminalBufferValue currentChar = ref terminalBuffer[x, y];
-						previousChar = default;
-						previousChar.SetChar(_terminalDefinition, ' ');
-						currentChar = default;
-						currentChar.SetChar(_terminalDefinition, ' ');
-					}
-				}
-				return;
-			}
-			SwapAndClearBuffer();
-
-			TerminalBufferValue currentState = default;
-
-			BuildBufferFromChildren(
-				_rectTransform,
-				currentState
-			);
-
-			// Resolve connected line characters based on neighbors
-			ActualizeConnectedLinesToBuffer();
-		}
 		
 		private void OnDestroy()
 		{
@@ -998,10 +401,10 @@ namespace InGameTerminal
 			}
 		}
 
-		private RectTransform _rectTransform = null;
-		bool firstUpdate = true;
+
 		public bool DebugUpdate = false;
 		public bool DebugReadyToUpdate = false;
+
 		private void Update()
 		{
 			if (DebugUpdate && !DebugReadyToUpdate)
@@ -1018,15 +421,6 @@ namespace InGameTerminal
 				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a Terminal component.");
 				return;
 			}
-			if (!_rectTransform)
-			{
-				_rectTransform = terminal.RectTransform;
-			}
-			if (!_rectTransform)
-			{
-				Debug.Log($"Terminal is missing a RectTransform", this);
-				return;
-			}
 			if (!_unityCanvas)
 			{
 				_unityCanvas = terminal.GetCanvas();
@@ -1040,26 +434,27 @@ namespace InGameTerminal
 				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a TerminalDefinition.");
 				return;
 			}
+			ref var terminalState = ref this.terminalState;
+			ref var terminalBuffer = ref terminalState.terminalBuffer;
+			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 			if (terminalBuffer == null)
 			{
+				firstUpdate = true;
 				terminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
 				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
 				InitMesh();
 			}
-
-			BuildBuffer();
-			Debug.Log($"PreviousBuffer at y=0 x=1: '{previousTerminalBuffer[1,0].GetChar(_terminalDefinition)}'", this);
-			Debug.Log($"Current Buffer at y=0 x=1: '{terminalBuffer[1,0].GetChar(_terminalDefinition)}'", this);
-			BuildTerminalCommands();
-			StringBuilder terminalCommandsDebug = new();
-			terminalCommandsDebug.Append("Terminal commands: [");
-			foreach (var cmd in terminalCommands)
-			{
-				terminalCommandsDebug.Append($"{cmd.CommandType} {cmd.X} {cmd.Y}, ");
-			}
-			terminalCommandsDebug.Append("]");
-			Debug.Log(terminalCommandsDebug, this);
-			DrawTerminalCommands();
+			terminal.BuildBuffer(ref terminalState, firstUpdate);
+			terminal.BuildTerminalCommands(ref terminalState, terminalCommands, firstUpdate);
+			//StringBuilder terminalCommandsDebug = new();
+			//terminalCommandsDebug.Append("Terminal commands: [");
+			//foreach (var cmd in terminalCommands)
+			//{
+			//	terminalCommandsDebug.Append($"{cmd.CommandType} {cmd.X} {cmd.Y}, ");
+			//}
+			//terminalCommandsDebug.Append("]");
+			//Debug.Log(terminalCommandsDebug, this);
+			DrawTerminalCommands(terminalCommands);
 			//DrawBuffer();
 			UpdateUVs();
 			firstUpdate = false;

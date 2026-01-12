@@ -1,0 +1,8 @@
+namespace InGameTerminal
+{
+	public struct TerminalState
+	{
+		public TerminalBufferValue[,] terminalBuffer;
+		public TerminalBufferValue[,] previousTerminalBuffer;
+	}
+}
