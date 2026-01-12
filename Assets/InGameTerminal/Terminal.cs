@@ -28,7 +28,7 @@ namespace InGameTerminal
 		[SerializeField]
 		public int Height = 24;
 		[SerializeField]
-		public TerminalDefinition TerminalDefinition;
+		public UnityTerminalDefinitionBase TerminalDefinition;
 
 		[SerializeField]
 		private Canvas _unityCanvas;
@@ -39,6 +39,7 @@ namespace InGameTerminal
 		}
 		[SerializeField]
 		private RectTransform _rectTransform;
+		public RectTransform RectTransform => _rectTransform;
 		private void EnsureSetup()
 		{
 			_unityCanvas = Util.GetOrCreateComponent<Canvas>(gameObject);
@@ -75,7 +76,7 @@ namespace InGameTerminal
 		// Update is called once per frame
 		void Update()
 		{
-			if (!TerminalDefinition)
+			if (TerminalDefinition == null)
 			{
 				return;
 			}

@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 namespace InGameTerminal
 {
@@ -29,11 +30,11 @@ namespace InGameTerminal
 	[RequireComponent(typeof(CanvasRenderer))]
 	public class TerminalRenderer : MonoBehaviour
 	{
-		private TerminalDefinition _terminalDefinition;
+		private ITerminalDefinition _terminalDefinition;
 		private struct TerminalBufferValue
 		{
-			private TerminalDefinition _terminalDefinition;
-			public TerminalBufferValue(TerminalDefinition terminalDefinition)
+			private ITerminalDefinition _terminalDefinition;
+			public TerminalBufferValue(ITerminalDefinition terminalDefinition)
 			{
 				_terminalDefinition = terminalDefinition;
 				AtlasX = 0;
@@ -45,19 +46,15 @@ namespace InGameTerminal
 				Inverted = false;
 				Blink = false;
 			}
-			public char Char
+			public readonly char GetChar(ITerminalDefinition terminalDefinition)
 			{
-				get
-				{
-					int index = AtlasY * _terminalDefinition.AtlasCols + AtlasX;
-					return (char)index;
-				}
-				set
-				{
-					Vector2Int charXY = _terminalDefinition.CharToXY(value);
-					AtlasX = charXY.x;
-					AtlasY = charXY.y;
-				}
+				return terminalDefinition.XYToChar(AtlasX, AtlasY);
+			}
+			public void SetChar(ITerminalDefinition terminalDefinition, char c)
+			{
+				Vector2Int charXY = terminalDefinition.CharToXY(c);
+				AtlasX = charXY.x;
+				AtlasY = charXY.y;
 			}
 			public int AtlasX;
 			public int AtlasY;
@@ -97,10 +94,10 @@ namespace InGameTerminal
 
 		private TerminalBufferValue[,] terminalBuffer = null;
 		private TerminalBufferValue[,] previousTerminalBuffer = null;
-		private TerminalBufferValue lastBufferValueState = default;
 
 		enum TerminalCommandType
 		{
+			Char = 0,
 			Up,
 			Down,
 			Left,
@@ -293,73 +290,59 @@ namespace InGameTerminal
 
 		[SerializeField]
 		private Terminal terminal;
-		private void BuildTerminalCommands(List<TerminalCommand> output)
+		List<TerminalCommand> terminalCommands = new List<TerminalCommand>();
+		private void BuildTerminalCommands()
 		{
-			var currentState = lastBufferValueState;
+			terminalCommands.Clear();
+			terminalCommands.Add(new TerminalCommand()
+			{
+				CommandType = TerminalCommandType.HomeCursor
+			});
+			if (firstUpdate)
+			{
+				terminalCommands.Add(new TerminalCommand()
+				{
+					CommandType = TerminalCommandType.EraseInDisplay
+				});
+				return;
+			}
+
+			Vector2Int cursorPosition = default;
+			
 			for (int y = 0; y < terminal.Height; y++)
 			{
 				for (int x = 0; x < terminal.Width; x++)
 				{
 					var cell = terminalBuffer[x, y];
 					var previousCell = previousTerminalBuffer[x, y];
-					if (cell != previousCell || forceRedraw)
+					if (cell != previousCell)
 					{
-						// Move cursor if needed
-						if (output.Count == 0 ||
-							output.Last().X != x ||
-							output.Last().Y != y)
+						Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(_terminalDefinition)}' to '{cell.GetChar(_terminalDefinition)}'");
+						if (cursorPosition.x != x || cursorPosition.y != y)
 						{
-							output.Add(new TerminalCommand()
+							terminalCommands.Add(new TerminalCommand()
 							{
 								CommandType = TerminalCommandType.MoveTo,
 								X = x,
 								Y = y
 							});
 						}
-						// Apply attribute changes
-						if (cell.Italic != currentState.Italic)
+						terminalCommands.Add(new TerminalCommand()
 						{
-							output.Add(new TerminalCommand()
-							{
-								CommandType = TerminalCommandType.Italic
-							});
-						}
-						if (cell.Bold != currentState.Bold)
+							Char = cell.GetChar(_terminalDefinition),
+							X = x,
+							Y = y
+						});
+						cursorPosition.x++;
+						if (cursorPosition.x > terminal.Width)
 						{
-							output.Add(new TerminalCommand()
-							{
-								CommandType = TerminalCommandType.Bold
-							});
+							cursorPosition.x = 0;
+							cursorPosition.y++;
 						}
-						if (cell.Underline != currentState.Underline)
+						if (cursorPosition.y > terminal.Height)
 						{
-							output.Add(new TerminalCommand()
-							{
-								CommandType = TerminalCommandType.Underline
-							});
+							cursorPosition.y = 0;
 						}
-						if (cell.Inverted != currentState.Inverted)
-						{
-							output.Add(new TerminalCommand()
-							{
-								CommandType = TerminalCommandType.Invert
-							});
-						}
-						if (cell.Blink != currentState.Blink)
-						{
-							output.Add(new TerminalCommand()
-							{
-								CommandType = TerminalCommandType.Blink
-							});
-						}
-						if (cell.Char != currentState.Char)
-						{
-							output.Add(new TerminalCommand()
-							{
-								Char = cell.Char
-							});
-						}
-						currentState = cell;
 					}
 				}
 			}
@@ -368,12 +351,6 @@ namespace InGameTerminal
 		
 		private Canvas _unityCanvas;
 		private CanvasRenderer _canvasRenderer;
-		private Mesh _mesh;
-		
-		private List<Element> elementPool = new();
-		private List<Elements.ConnectedLinesGroup> connectedLinesGroupPool = new();
-		private int nextConnectorID = 1;
-
 		
 		private void Awake()
 		{
@@ -385,6 +362,9 @@ namespace InGameTerminal
 				_mesh.MarkDynamic();
 			}
 		}
+
+		#region mesh
+		private Mesh _mesh;
 		private bool forceRedraw = false;
 		private void InitMesh()
 		{
@@ -412,46 +392,10 @@ namespace InGameTerminal
 			_canvasRenderer.SetMesh(_mesh);
 			_canvasRenderer.SetMaterial(_terminalDefinition.Atlas, null);
 		}
-		private void Update()
-		{
-			if (!terminal)
-			{
-				terminal = GetComponent<Terminal>();
-			}
-			if (!terminal)
-			{
-				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a Terminal component.");
-				return;
-			}
-			if (!_unityCanvas)
-			{
-				_unityCanvas = terminal.GetCanvas();
-			}
-			if (!_terminalDefinition)
-			{
-				_terminalDefinition = terminal.TerminalDefinition;
-			}
-			if (!_terminalDefinition)
-			{
-				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a TerminalDefinition.");
-				return;
-			}
-			if (terminalBuffer == null)
-			{
-				terminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
-				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
-				forceRedraw = true;
-				InitMesh();
-			}
 
-			terminal.GetComponentsInChildren<Element>(elementPool);
-
-			BuildBuffer();
-			DrawBuffer();
-		}
 		List<Vector3> vertices = new List<Vector3>();
 		List<Vector2> uvs = new List<Vector2>();
-	 List<int> triangles = new List<int>();
+		List<int> triangles = new List<int>();
 		List<Color32> colors = new List<Color32>();
 
 		int vertexOffset = 0;
@@ -464,8 +408,8 @@ namespace InGameTerminal
 			float pixelY = terminalY * _terminalDefinition.GlyphHeight;
 
 			// Calculate UVs
-			float uvLeft = (float)atlasX / _terminalDefinition.AtlasCols;
-			float uvRight = (float)(atlasX + 1) / _terminalDefinition.AtlasCols;
+			float uvLeft = 1.0f - (float)atlasX / _terminalDefinition.AtlasCols;
+			float uvRight = 1.0f - (float)(atlasX + 1) / _terminalDefinition.AtlasCols;
 			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows;
 			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows;
 
@@ -532,7 +476,9 @@ namespace InGameTerminal
 			uvs[vertexIndex + 2] = new Vector2(uvRight, uvBottom);
 			uvs[vertexIndex + 3] = new Vector2(uvLeft, uvBottom);
 		}
+		#endregion mesh
 
+		#region Draw x to buffer
 		private void DrawHorizontalLineToBuffer(
 			int terminalY,
 			int startTerminalX,
@@ -678,7 +624,7 @@ namespace InGameTerminal
 			int startTerminalY,
 			int endTerminalX,
 			int endTerminalY,
-			int connectorID = 0
+			int connectorID = -1
 		)
 		{
 			// Draw horizontal lines
@@ -696,7 +642,7 @@ namespace InGameTerminal
 			DrawBottomRightCornerToBuffer(endTerminalX, endTerminalY, connectorID);
 		}
 
-		private void DrawConnectedArea(
+		private void DrawConnectedAreaToBuffer(
 			int startTerminalX,
 			int startTerminalY,
 			int endTerminalX,
@@ -713,25 +659,29 @@ namespace InGameTerminal
 				}
 			}
 		}
+		#endregion Draw x to buffer
 
 		private void DrawBuffer()
 		{
 			ref TerminalBufferValue testCell = ref terminalBuffer[0, 0];
-			
+			testCell.SetChar(_terminalDefinition, '&');
+
 			for (int y = 0; y < terminal.Height; y++)
 			{
 				for (int x = 0; x < terminal.Width; x++)
 				{
 					var cell = terminalBuffer[x, y];
 					var previousCell = previousTerminalBuffer[x, y];
-					
+
 					//if (cell != previousCell || forceRedraw)
 					{
 						DrawCharToMesh(cell.AtlasX, cell.AtlasY, x, y);
 					}
 				}
 			}
-			
+		}
+		private void UpdateUVs()
+		{
 			// Update the mesh UVs
 			_mesh.SetUVs(0, uvs);
 			_mesh.UploadMeshData(false);
@@ -741,50 +691,180 @@ namespace InGameTerminal
 			
 			forceRedraw = false;
 		}
-
-		private void BuildBuffer()
+		private void DrawTerminalCommands()
 		{
-			// Reset connector ID counter each frame
-			nextConnectorID = 1;
-			
-			for (int y = 0; y < terminal.Height; y++)
+			Vector2Int position = default;
+			bool italic = false;
+			bool bold = false;
+			bool underline = false;
+			bool inverted = false;
+			bool blink = false;
+
+			Vector2Int spaceXY = _terminalDefinition.CharToXY(' ');
+
+			foreach (var command in terminalCommands)
 			{
-				for (int x = 0; x < terminal.Width; x++)
+				switch (command.CommandType)
 				{
-					previousTerminalBuffer[x, y] = terminalBuffer[x, y];
-					ref TerminalBufferValue cell = ref terminalBuffer[x, y];
-					cell = new TerminalBufferValue(_terminalDefinition);
-					cell.Char = ' ';
+					case TerminalCommandType.Char:
+						if (position.x >= 0 && position.x < terminal.Width &&
+							position.y >= 0 && position.y < terminal.Height)
+						{
+							Vector2Int atlasXY = _terminalDefinition.CharToXY(command.Char);
+							DrawCharToMesh(atlasXY.x, atlasXY.y, position.x, position.y);
+						}
+						position.x++;
+						if (position.x >= terminal.Width)
+						{
+							position.x = 0;
+							position.y++;
+						}
+						if (position.y >= terminal.Height)
+						{
+							position.y = 0;
+						}
+						break;
+
+					case TerminalCommandType.Up:
+						position.y--;
+						if (position.y < 0)
+						{
+							position.y = terminal.Height - 1;
+						}
+						break;
+
+					case TerminalCommandType.Down:
+						position.y++;
+						if (position.y >= terminal.Height)
+						{
+							position.y = 0;
+						}
+						break;
+
+					case TerminalCommandType.Left:
+						position.x--;
+						if (position.x < 0)
+						{
+							position.x = terminal.Width - 1;
+						}
+						break;
+
+					case TerminalCommandType.Right:
+						position.x++;
+						if (position.x >= terminal.Width)
+						{
+							position.x = 0;
+						}
+						break;
+
+					case TerminalCommandType.MoveTo:
+						position.x = command.X;
+						position.y = command.Y;
+						break;
+
+					case TerminalCommandType.CarriageReturn:
+						position.x = 0;
+						break;
+
+					case TerminalCommandType.LineFeed:
+						position.y++;
+						if (position.y >= terminal.Height)
+						{
+							position.y = 0;
+						}
+						break;
+
+					case TerminalCommandType.Italic:
+						italic = !italic;
+						break;
+
+					case TerminalCommandType.Bold:
+						bold = !bold;
+						break;
+
+					case TerminalCommandType.Underline:
+						underline = !underline;
+						break;
+
+					case TerminalCommandType.Invert:
+						inverted = !inverted;
+						break;
+
+					case TerminalCommandType.Blink:
+						blink = !blink;
+						break;
+
+					case TerminalCommandType.EL:
+						// Erase in Line - clear from cursor to end of line
+						
+						for (int x = position.x; x < terminal.Width; x++)
+						{
+							DrawCharToMesh(spaceXY.x, spaceXY.y, x, position.y);
+						}
+						break;
+
+					case TerminalCommandType.EraseInDisplay:
+						// Erase in Display - clear from cursor to end of display
+						for (int y = position.y; y < terminal.Height; y++)
+						{
+							int startX = (y == position.y) ? position.x : 0;
+							for (int x = startX; x < terminal.Width; x++)
+							{
+								DrawCharToMesh(spaceXY.x, spaceXY.y, x, y);
+							}
+						}
+						break;
+
+					case TerminalCommandType.HomeCursor:
+						position.x = 0;
+						position.y = 0;
+						break;
 				}
 			}
-
-			foreach (var element in elementPool)
+		}
+		private int nextConnectorID = 1;
+		private void BuildBufferFromChildren(RectTransform rectTransform, TerminalBufferValue currentState)
+		{
+			int childCount = rectTransform.childCount;
+			for (int i_outer = 0; i_outer < childCount; i_outer++)
 			{
+				var child = rectTransform.GetChild(i_outer);
+				if (!child.gameObject.activeInHierarchy)
+				{
+					continue;
+				}
+				var element = child.GetComponent<Element>();
+				Vector2Int position = element.GetTerminalPosition(_terminalDefinition);
+				RectInt bounds = element.GetTerminalBounds(_terminalDefinition);
+
+				if (bounds.x < 0 || bounds.xMax > terminal.Width || bounds.y < 0 || bounds.yMax > terminal.Height)
+				{
+					continue;
+				}
+
 				if (element is Elements.Text text)
 				{
 					string contents = text.Contents;
 					if (string.IsNullOrEmpty(contents))
 						continue;
 
-					Vector2Int position = element.GetTerminalPosition(_terminalDefinition);
-					RectInt bounds = element.GetTerminalBounds(_terminalDefinition);
-
 					for (int i = 0; i < contents.Length; i++)
 					{
 						char c = contents[i];
-						
+
 						// Bounds check before writing
 						if (position.x < 0 || position.x >= terminal.Width ||
 							position.y < 0 || position.y >= terminal.Height)
 						{
-							break;
+							Debug.Log("Bounds check");
+							goto endText;
 						}
-						
+
 						ref TerminalBufferValue cell = ref terminalBuffer[
 							position.x,
 							position.y
 						];
-						cell.Char = c;
+						cell.SetChar(_terminalDefinition, c);
 						cell.ConnectorID = 0;
 
 						position.x++;
@@ -798,20 +878,23 @@ namespace InGameTerminal
 						// Stop if past the bottom edge of the element bounds
 						if (position.y >= bounds.yMax)
 						{
-							break;
+							Debug.Log("Bounds check 2");
+							goto endText;
 						}
 					}
+				endText:
+					BuildBufferFromChildren(text.RectTransform, currentState);
+					continue;
 				}
 				if (element is Elements.HorizontalLine hline)
 				{
-					RectInt bounds = element.GetTerminalBounds(_terminalDefinition);
 					for (int y = bounds.yMin; y < bounds.yMax; y++)
 					{
 						for (int x = bounds.xMin; x < bounds.xMax; x++)
 						{
 							if (x < 0 || x >= terminal.Width || y < 0 || y >= terminal.Height)
-								continue;
-								
+								goto endHorizontalLine;
+
 							ref TerminalBufferValue cell = ref terminalBuffer[
 								x,
 								y
@@ -820,33 +903,88 @@ namespace InGameTerminal
 							cell.AtlasY = _terminalDefinition.HorizontalLineY;
 						}
 					}
+				endHorizontalLine:
+					BuildBufferFromChildren(hline.RectTransform, currentState);
+					continue;
 				}
 				if (element is ConnectedLinesGroup connectedLinesGroup)
 				{
-					int connectorID = nextConnectorID++;
-					var childLines = connectedLinesGroup.GetChildLines();
-
-					foreach (var line in childLines)
+					currentState.ConnectorID = nextConnectorID++;
+					BuildBufferFromChildren(connectedLinesGroup.RectTransform, currentState);
+					continue;
+				}
+				if (element is ConnectedLine line)
+				{
+					for (int y = bounds.yMin; y < bounds.yMax; y++)
 					{
-						RectInt bounds = line.GetTerminalBounds(_terminalDefinition);
-
-						for (int y = bounds.yMin; y < bounds.yMax; y++)
+						for (int x = bounds.xMin; x < bounds.xMax; x++)
 						{
-							for (int x = bounds.xMin; x < bounds.xMax; x++)
-							{
-								if (x < 0 || x >= terminal.Width || y < 0 || y >= terminal.Height)
-									continue;
+							if (x < 0 || x >= terminal.Width || y < 0 || y >= terminal.Height)
+								goto endConnectedLine;
 
-								ref TerminalBufferValue cell = ref terminalBuffer[x, y];
-								cell.ConnectorID = connectorID;
-								// Set initial glyph - will be resolved by ActualizeConnectedLinesToBuffer
-								cell.AtlasX = _terminalDefinition.HorizontalLineX;
-								cell.AtlasY = _terminalDefinition.HorizontalLineY;
-							}
+							ref TerminalBufferValue cell = ref terminalBuffer[x, y];
+							cell.ConnectorID = currentState.ConnectorID;
+							// Set initial glyph - will be resolved by ActualizeConnectedLinesToBuffer
+							cell.AtlasX = _terminalDefinition.HorizontalLineX;
+							cell.AtlasY = _terminalDefinition.HorizontalLineY;
 						}
 					}
+
+				endConnectedLine:
+					BuildBufferFromChildren(line.RectTransform, currentState);
+					continue;
+				}
+				if (element is Elements.Box box)
+				{
+					DrawBoxToBuffer(
+						bounds.xMin,
+						bounds.yMin,
+						bounds.xMax - 1,
+						bounds.yMax - 1
+					);
+					BuildBufferFromChildren(box.RectTransform, currentState);
+					continue;
 				}
 			}
+		}
+
+		private void SwapAndClearBuffer()
+		{
+			(terminalBuffer, previousTerminalBuffer) = (previousTerminalBuffer, terminalBuffer);
+			for (int y = 0; y < terminal.Height; y++)
+			{
+				for (int x = 0; x < terminal.Width; x++)
+				{
+					terminalBuffer[x, y] = default;
+				}
+			}
+		}
+		private void BuildBuffer()
+		{
+			if (firstUpdate)
+			{
+				for (int y = 0; y < terminal.Height; y++)
+				{
+					for (int x = 0; x < terminal.Width; x++)
+					{
+						ref TerminalBufferValue previousChar = ref previousTerminalBuffer[x, y];
+						ref TerminalBufferValue currentChar = ref terminalBuffer[x, y];
+						previousChar = default;
+						previousChar.SetChar(_terminalDefinition, ' ');
+						currentChar = default;
+						currentChar.SetChar(_terminalDefinition, ' ');
+					}
+				}
+				return;
+			}
+			SwapAndClearBuffer();
+
+			TerminalBufferValue currentState = default;
+
+			BuildBufferFromChildren(
+				_rectTransform,
+				currentState
+			);
 
 			// Resolve connected line characters based on neighbors
 			ActualizeConnectedLinesToBuffer();
@@ -859,5 +997,78 @@ namespace InGameTerminal
 				DestroyImmediate(_mesh);
 			}
 		}
+
+		private RectTransform _rectTransform = null;
+		bool firstUpdate = true;
+		public bool DebugUpdate = false;
+		public bool DebugReadyToUpdate = false;
+		private void Update()
+		{
+			if (DebugUpdate && !DebugReadyToUpdate)
+			{
+				return;
+			}
+			DebugReadyToUpdate = false;
+			if (!terminal)
+			{
+				terminal = GetComponent<Terminal>();
+			}
+			if (!terminal)
+			{
+				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a Terminal component.");
+				return;
+			}
+			if (!_rectTransform)
+			{
+				_rectTransform = terminal.RectTransform;
+			}
+			if (!_rectTransform)
+			{
+				Debug.Log($"Terminal is missing a RectTransform", this);
+				return;
+			}
+			if (!_unityCanvas)
+			{
+				_unityCanvas = terminal.GetCanvas();
+			}
+			if (_terminalDefinition == null)
+			{
+				_terminalDefinition = terminal.TerminalDefinition;
+			}
+			if (_terminalDefinition == null)
+			{
+				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a TerminalDefinition.");
+				return;
+			}
+			if (terminalBuffer == null)
+			{
+				terminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
+				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
+				InitMesh();
+			}
+
+			BuildBuffer();
+			Debug.Log($"PreviousBuffer at y=0 x=1: '{previousTerminalBuffer[1,0].GetChar(_terminalDefinition)}'", this);
+			Debug.Log($"Current Buffer at y=0 x=1: '{terminalBuffer[1,0].GetChar(_terminalDefinition)}'", this);
+			BuildTerminalCommands();
+			StringBuilder terminalCommandsDebug = new();
+			terminalCommandsDebug.Append("Terminal commands: [");
+			foreach (var cmd in terminalCommands)
+			{
+				terminalCommandsDebug.Append($"{cmd.CommandType} {cmd.X} {cmd.Y}, ");
+			}
+			terminalCommandsDebug.Append("]");
+			Debug.Log(terminalCommandsDebug, this);
+			DrawTerminalCommands();
+			//DrawBuffer();
+			UpdateUVs();
+			firstUpdate = false;
+		}
+
+		private void OnEnable()
+		{
+			firstUpdate = true;
+		}
+
 	}
 }

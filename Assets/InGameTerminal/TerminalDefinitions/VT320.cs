@@ -5,73 +5,72 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEditor;
-/**
- * Attributes are composited in this order:
- * - Base glyph fetch
- * - Italic shear
- * - Bold OR-shift
- * - Underline row force
- * - Reverse video
- * - Blink mask
- * 
- * Horizontal line at 17,7
- * Vertical line at 24,7
- **/
+
 namespace InGameTerminal.TerminalDefinitions
 {
-	public sealed class VT320 : TerminalDefinition
+	[CreateAssetMenu(fileName = "VT320 Terminal Definition", menuName = "InGameTerminal/VT320 Terminal Definition", order = 1)]
+	public sealed class VT320_ScriptableObject : UnityTerminalDefinitionBase, ITerminalDefinition, IChartoXY
 	{
-		public override int AtlasRows => 9;
+		public override int AtlasRows { get; set; } = 9;
 
-		public override int AtlasCols => 32;
+		public override int AtlasCols { get; set; } = 32;
 
-		public override int GlyphWidth => 15;
+		public override int GlyphWidth { get; set; } = 15;
 
-		public override int GlyphHeight => 12;
+		public override int GlyphHeight { get; set; } = 12;
 
-		public override float PixelHeight => 11.0f / 4.0f;
+		public override float PixelHeight { get; set; } = 11.0f / 4.0f;
 
 		// Box drawing characters
-		public override int HorizontalLineX => 17;
-		public override int HorizontalLineY => 7;
+		public override int HorizontalLineX { get; set; } = 17;
+		public override int HorizontalLineY { get; set; } = 7;
 
-		public override int VerticalLineX => 24;
-		public override int VerticalLineY => 7;
+		public override int VerticalLineX { get; set; } = 24;
+		public override int VerticalLineY { get; set; } = 7;
 
-		public override int TopLeftCornerX => 12;
-		public override int TopLeftCornerY => 7;
+		public override int TopLeftCornerX { get; set; } = 12;
+		public override int TopLeftCornerY { get; set; } = 7;
 
-		public override int TopRightCornerX => 11;
-		public override int TopRightCornerY => 7;
+		public override int TopRightCornerX { get; set; } = 11;
+		public override int TopRightCornerY { get; set; } = 7;
 
-		public override int BottomLeftCornerX => 13;
-		public override int BottomLeftCornerY => 7;
+		public override int BottomLeftCornerX { get; set; } = 13;
+		public override int BottomLeftCornerY { get; set; } = 7;
 
-		public override int BottomRightCornerX => 10;
-		public override int BottomRightCornerY => 7;
+		public override int BottomRightCornerX { get; set; } = 10;
+		public override int BottomRightCornerY { get; set; } = 7;
 
-		public override int CrossX => 14;
-		public override int CrossY => 7;
+		public override int CrossX { get; set; } = 14;
+		public override int CrossY { get; set; } = 7;
 
-		public override int LeftTeeX => 21;
-		public override int LeftTeeY => 7;
+		public override int LeftTeeX { get; set; } = 21;
+		public override int LeftTeeY { get; set; } = 7;
 
-		public override int RightTeeX => 20;
-		public override int RightTeeY => 7;
+		public override int RightTeeX { get; set; } = 20;
+		public override int RightTeeY { get; set; } = 7;
 
-		public override int UpTeeX => 22;
-		public override int UpTeeY => 7;
+		public override int UpTeeX { get; set; } = 22;
+		public override int UpTeeY { get; set; } = 7;
 
-		public override int DownTeeX => 23;
-		public override int DownTeeY => 7;
+		public override int DownTeeX { get; set; } = 23;
+		public override int DownTeeY { get; set; } = 7;
 
-		public override Vector2Int CharToXY(char c)
+		char IChartoXY.XYToChar(int x, int y)
+		{
+			if (x == 0 && y == 0)
+			{
+				return ' ';
+			}
+			return '\0';
+		}
+
+		Vector2Int IChartoXY.CharToXY(char c)
 		{
 			if (c == ' ')
 			{
 				return Vector2Int.zero;
 			}
-			return base.CharToXY(c);
+			return new Vector2Int(-1, -1);
 		}
 	}
 }

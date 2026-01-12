@@ -66,5 +66,33 @@ namespace InGameTerminal
 			rect.width = width;
 			rect.height = height;
 		}
+		public static Vector2Int CharToXY(this ITerminalDefinition terminalDefinition, char c)
+		{
+			Vector2Int ret = default;
+			if (terminalDefinition is IChartoXY chartoXY)
+			{
+				ret = chartoXY.CharToXY(c);
+			}
+			if (ret.x < 0 || ret.y < 0)
+			{
+				int index = (int)c;
+				ret.x = index % terminalDefinition.AtlasCols;
+				ret.y = index / terminalDefinition.AtlasCols;
+			}
+			return ret;
+		}
+		public static char XYToChar(this ITerminalDefinition terminalDefinition, int x, int y)
+		{
+			char ret = '\0';
+			if (terminalDefinition is IChartoXY chartoXY)
+			{
+				ret = chartoXY.XYToChar(x, y);
+			}
+			if (ret == '\0')
+			{
+				ret = (char)(y * terminalDefinition.AtlasCols + x);
+			}
+			return ret;
+		}
 	}
 }
