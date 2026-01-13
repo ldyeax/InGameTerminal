@@ -320,7 +320,13 @@ namespace InGameTerminal
 				});
 			}
 
-			Vector2Int cursorPosition = default;
+			/**
+			 * expectedTerminalCursorPosition tracks where we expect the actual terminal's cursor to have been placed.
+			 * If we put down a glyph, we expect the terminal to move the cursor to the right and wrap if necessary.
+			 * But just sending an escape sequence etc. does not necessarily move the cursor.
+			 * If we skip over a character because it hasn't changed, then later on we will need to move the cursor to catch up to the new position.
+			 **/
+			Vector2Int expectedTerminalCursorPosition = default;
 			// Track the current character bank state of the terminal (starts as ASCII)
 			TerminalCharacterBank currentCharacterBank = TerminalCharacterBank.ASCII;
 
@@ -337,8 +343,9 @@ namespace InGameTerminal
 					}
 					if (drawCell)
 					{
+						bool movedCursor = false;
 						//Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(TerminalDefinition)}' to '{cell.GetChar(TerminalDefinition)}'");
-						if (cursorPosition.x != x || cursorPosition.y != y)
+						if (expectedTerminalCursorPosition.x != x || expectedTerminalCursorPosition.y != y)
 						{
 							terminalCommands.Add(new TerminalCommand()
 							{
@@ -346,6 +353,8 @@ namespace InGameTerminal
 								X = x,
 								Y = y
 							});
+							expectedTerminalCursorPosition.x = x;
+							expectedTerminalCursorPosition.y = y;
 						}
 						// Check against the current terminal state, not the previous cell
 						if (currentCharacterBank != cell.CharacterBank)
@@ -365,6 +374,7 @@ namespace InGameTerminal
 								X = cell.AtlasX,
 								Y = cell.AtlasY
 							});
+							movedCursor = true;
 						}
 						else
 						{
@@ -376,6 +386,7 @@ namespace InGameTerminal
 									CommandType = TerminalCommandType.Char,
 									X = cell.GetChar(TerminalDefinition)
 								});
+								movedCursor = true;
 							}
 							else
 							{
@@ -384,18 +395,24 @@ namespace InGameTerminal
 									CommandType = TerminalCommandType.Byte,
 									X = cell.GetByte(TerminalDefinition)
 								});
+								movedCursor = true;
 							}
 						}
 
-						cursorPosition.x++;
-						if (cursorPosition.x > Width)
+
+
+						if (movedCursor)
 						{
-							cursorPosition.x = 0;
-							cursorPosition.y++;
-						}
-						if (cursorPosition.y > Height)
-						{
-							cursorPosition.y = 0;
+							expectedTerminalCursorPosition.x++;
+							if (expectedTerminalCursorPosition.x >= Width)
+							{
+								expectedTerminalCursorPosition.x = 0;
+								expectedTerminalCursorPosition.y++;
+							}
+							if (expectedTerminalCursorPosition.y >= Height)
+							{
+								expectedTerminalCursorPosition.y = 0;
+							}
 						}
 					}
 				}

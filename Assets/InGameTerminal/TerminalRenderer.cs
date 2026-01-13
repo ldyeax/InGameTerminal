@@ -429,14 +429,14 @@ namespace InGameTerminal
 			}
 			terminal.BuildBuffer(ref terminalState, firstUpdate);
 			terminal.BuildTerminalCommands(ref terminalState, terminalCommands, firstUpdate);
-			//StringBuilder terminalCommandsDebug = new();
-			//terminalCommandsDebug.Append("Terminal commands: [");
-			//foreach (var cmd in terminalCommands)
-			//{
-			//	terminalCommandsDebug.Append($"{cmd.CommandType} {cmd.X} {cmd.Y}, ");
-			//}
-			//terminalCommandsDebug.Append("]");
-			//Debug.Log(terminalCommandsDebug, this);
+			StringBuilder terminalCommandsDebug = new();
+			terminalCommandsDebug.Append("Terminal commands: [");
+			foreach (var cmd in terminalCommands)
+			{
+				terminalCommandsDebug.Append($"{cmd.CommandType} {cmd.X} {cmd.Y}, ");
+			}
+			terminalCommandsDebug.Append("]");
+			Debug.Log(terminalCommandsDebug, this);
 			DrawTerminalCommands(terminalCommands);
 			//DrawBuffer();
 			UpdateUVs();
