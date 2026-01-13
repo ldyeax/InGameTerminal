@@ -153,43 +153,6 @@ Shader "InGameTerminal/PixelPerfect"
                     float dotMask = 1.0 - smoothstep(edgeStart, 1.0, dist);
                     
                     col.rgb *= dotMask;
-                    
-                    // Round horizontal edges where pixel meets non-pixel (capsule/stadium shape)
-                    // Sample neighboring texels to detect horizontal boundaries
-                    float2 texelSize = _MainTex_TexelSize.xy;
-                    fixed4 leftNeighbor = tex2D(_MainTex, uv - float2(texelSize.x, 0));
-                    fixed4 rightNeighbor = tex2D(_MainTex, uv + float2(texelSize.x, 0));
-                    
-                    // Detect if we're at a left or right edge (current pixel is lit, neighbor is not)
-                    float currentBrightness = max(col.r, max(col.g, col.b));
-                    float leftBrightness = max(leftNeighbor.r, max(leftNeighbor.g, leftNeighbor.b));
-                    float rightBrightness = max(rightNeighbor.r, max(rightNeighbor.g, rightNeighbor.b));
-                    
-                    float threshold = 0.01;
-                    bool isLeftEdge = (currentBrightness > threshold) && (leftBrightness < threshold);
-                    bool isRightEdge = (currentBrightness > threshold) && (rightBrightness < threshold);
-                    
-                    // Convert horizontal texel position to -1 to 1 range
-                    float centeredX = texelPos.x * 2.0 - 1.0;
-                    
-                    // Apply semicircle rounding at edges
-                    if (isLeftEdge && centeredX < 0)
-                    {
-                        // Left edge: create semicircle on left side
-                        float2 edgePos = float2(centeredX, centeredY);
-                        float edgeDist = length(edgePos);
-                        float edgeMask = 1.0 - smoothstep(edgeStart, 1.0, edgeDist);
-                        col.rgb *= edgeMask / max(dotMask, 0.001); // Adjust for already applied dotMask
-                    }
-                    
-                    if (isRightEdge && centeredX > 0)
-                    {
-                        // Right edge: create semicircle on right side
-                        float2 edgePos = float2(centeredX, centeredY);
-                        float edgeDist = length(edgePos);
-                        float edgeMask = 1.0 - smoothstep(edgeStart, 1.0, edgeDist);
-                        col.rgb *= edgeMask / max(dotMask, 0.001); // Adjust for already applied dotMask
-                    }
                 }
                 
                 // Apply scanline gap effect
