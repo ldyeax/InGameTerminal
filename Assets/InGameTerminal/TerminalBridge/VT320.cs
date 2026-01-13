@@ -44,7 +44,8 @@ namespace InGameTerminal.TerminalBridge
 		bool readyToDraw = false;
 
 		int lastProcessedcommands = 0;
-
+		int lastLast = -1;
+		int lastQueue = -1;
 
 		bool ITerminalBridge.Update(Terminal terminal, bool redraw)
 		{
@@ -53,14 +54,32 @@ namespace InGameTerminal.TerminalBridge
 			{
 				if (lastProcessedcommands > 0)
 				{
-					UnityEngine.Debug.Log($"VT320: Processed {lastProcessedcommands} commands at {UnityEngine.Time.time}");
+					if (lastProcessedcommands != lastLast)
+					{
+						UnityEngine.Debug.Log($"VT320: Processed {lastProcessedcommands} commands at {UnityEngine.Time.time}");
+						lastLast = lastProcessedcommands;
+					}
+					lastProcessedcommands = 0;
 				}
 				readyForUpdate = false;
 				terminal.BuildBuffer(ref terminalState, this.redraw);
 				terminal.BuildTerminalCommands(ref terminalState, terminalCommands, this.redraw);
+
+				if (terminalCommands.Count != lastQueue)
+				{
+					StringBuilder terminalCommandsDebug = new StringBuilder();
+					terminalCommandsDebug.Append("VT320: Queued commands: [");
+					foreach (var cmd in terminalCommands)
+					{
+						terminalCommandsDebug.Append($"{cmd.CommandType} {cmd.X} {cmd.Y}, ");
+					}
+					terminalCommandsDebug.Append("]");
+					UnityEngine.Debug.Log($"VT320: Queued {terminalCommands.Count} commands at {UnityEngine.Time.time}: {terminalCommandsDebug}");
+					lastQueue = terminalCommands.Count;
+				}
+
 				this.redraw = false;
 				readyToDraw = true;
-				UnityEngine.Debug.Log($"VT320: Queued {terminalCommands.Count} commands at {UnityEngine.Time.time}");
 				return true;
 			}
 			return false;

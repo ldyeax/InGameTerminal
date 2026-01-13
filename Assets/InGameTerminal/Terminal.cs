@@ -308,6 +308,11 @@ namespace InGameTerminal
 			{
 				CommandType = TerminalCommandType.HomeCursor
 			});
+			terminalCommands.Add(new TerminalCommand()
+			{
+				CommandType = TerminalCommandType.CharacterBank,
+				X = (int)TerminalCharacterBank.ASCII
+			});
 			if (redraw)
 			{
 				terminalCommands.Add(new TerminalCommand()
@@ -335,6 +340,14 @@ namespace InGameTerminal
 				for (int x = 0; x < Width; x++)
 				{
 					TerminalBufferValue cell = terminalBuffer[x, y];
+					if (redraw
+						&& !cell.HasTerminalCommand
+						&& cell.CharacterBank == TerminalCharacterBank.ASCII
+						&& cell.GetChar(TerminalDefinition) == ' '
+					)
+					{
+						continue;
+					}
 					TerminalBufferValue previousCell = previousTerminalBuffer[x, y];
 					bool drawCell = redraw;
 					if (!drawCell)
