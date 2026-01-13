@@ -22,7 +22,14 @@ namespace InGameTerminal
 		Underline,
 		Invert,
 		Blink,
-		EL,
+		/// <summary>
+		/// EL - Erase in Line: CSI Ps K
+		/// </summary>
+		EL_CursorToEnd,
+		EL_BeginningToCursor,
+		/// <summary>
+		/// ED - Erase in Display: CSI Ps J
+		/// </summary>
 		EraseInDisplay,
 		HomeCursor,
 		CharacterBank,

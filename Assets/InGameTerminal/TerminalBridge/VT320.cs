@@ -224,15 +224,20 @@ namespace InGameTerminal.TerminalBridge
 					// SGR 5 for blink on, SGR 25 for blink off
 					return new byte[] { ESC, CSI_7BIT, (byte)'5', (byte)'m' };
 
-				case TerminalCommandType.EL:
+				case TerminalCommandType.EL_CursorToEnd:
 					// EL - Erase in Line: CSI Ps K
 					// Ps = 0: erase from cursor to end of line (default)
 					return new byte[] { ESC, CSI_7BIT, (byte)'K' };
 
+				case TerminalCommandType.EL_BeginningToCursor:
+					// EL - Erase in Line: CSI Ps K
+					// Ps = 1: erase from beginning of line to cursor
+					return new byte[] { ESC, CSI_7BIT, (byte)'1', (byte)'K' };
+
 				case TerminalCommandType.EraseInDisplay:
 					// ED - Erase in Display: CSI Ps J
-					// Ps = 0: erase from cursor to end of display (default)
-					return new byte[] { ESC, CSI_7BIT, (byte)'J' };
+					// Ps = 2: erase entire display
+					return new byte[] { ESC, CSI_7BIT, (byte)'2', (byte)'J' };
 
 				case TerminalCommandType.HomeCursor:
 					// CUP with no parameters moves to home (1,1)

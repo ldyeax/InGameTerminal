@@ -104,5 +104,18 @@ namespace InGameTerminal
 			string s = $"{AtlasX},{AtlasY},{ConnectorID},{Italic},{Bold},{Underline},{Inverted},{Blink},{DeviceBytes},{DeviceByte1},{DeviceByte2},{DeviceByte3},{DeviceByte4},{CharacterBank},{HasTerminalCommand},{TerminalCommandType}";
 			return s.GetHashCode();
 		}
+
+		public readonly bool IsSpace(ITerminalDefinition terminalDefinition = null)
+		{
+			if (terminalDefinition == null)
+			{
+				terminalDefinition = _terminalDefinition;
+			}
+			if (terminalDefinition == null)
+			{
+				throw new System.Exception("TerminalDefinition is null in TerminalBufferValue.IsSpace");
+			}
+			return GetChar(terminalDefinition) == ' ' && !HasTerminalCommand && CharacterBank == TerminalCharacterBank.ASCII;
+		}
 	}
 }

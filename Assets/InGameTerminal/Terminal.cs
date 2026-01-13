@@ -1,3 +1,5 @@
+
+
 using InGameTerminal;
 using InGameTerminal.Elements;
 using InGameTerminal.SerialDriver;
@@ -323,6 +325,12 @@ namespace InGameTerminal
 				{
 					CommandType = TerminalCommandType.InitBanks
 				});
+				// Send HomeCursor again after init sequence to ensure cursor is at (0,0)
+				// Some terminals may leave cursor in unexpected position after EraseInDisplay/InitBanks
+				terminalCommands.Add(new TerminalCommand()
+				{
+					CommandType = TerminalCommandType.HomeCursor
+				});
 			}
 
 			/**
@@ -340,10 +348,7 @@ namespace InGameTerminal
 				for (int x = 0; x < Width; x++)
 				{
 					TerminalBufferValue cell = terminalBuffer[x, y];
-					if (redraw
-						&& !cell.HasTerminalCommand
-						&& cell.CharacterBank == TerminalCharacterBank.ASCII
-						&& cell.GetChar(TerminalDefinition) == ' '
+					if (redraw && cell.IsSpace(TerminalDefinition)
 					)
 					{
 						continue;
@@ -356,16 +361,92 @@ namespace InGameTerminal
 					}
 					if (drawCell)
 					{
+						if (x == 0)
+						{
+							int startSpaces = 0;
+							for (int x2 = 0; x2 < Width; x2++)
+							{
+								if (!previousTerminalBuffer[x2, y].IsSpace(TerminalDefinition) && terminalBuffer[x2, y].IsSpace(TerminalDefinition))
+								{
+									startSpaces++;
+
+								}
+								else
+								{
+									break;
+								}
+							}
+							if (startSpaces > 0)
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.MoveTo,
+									X = startSpaces - 1,
+									Y = y
+								});
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.EL_BeginningToCursor
+								});
+								expectedTerminalCursorPosition.x = x + startSpaces;
+								expectedTerminalCursorPosition.y = y;
+								x = expectedTerminalCursorPosition.x;
+								continue;
+							}
+						}
+					endEDBeginningToCursorCheck:
+
 						bool movedCursor = false;
+
 						//Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(TerminalDefinition)}' to '{cell.GetChar(TerminalDefinition)}'");
 						if (expectedTerminalCursorPosition.x != x || expectedTerminalCursorPosition.y != y)
 						{
-							terminalCommands.Add(new TerminalCommand()
+							bool needMoveTo = true;
+							if (expectedTerminalCursorPosition.x >= Width && x == 0 && expectedTerminalCursorPosition.y == y - 1)
 							{
-								CommandType = TerminalCommandType.MoveTo,
-								X = x,
-								Y = y
-							});
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.CarriageReturn
+								});
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.LineFeed
+								});
+								needMoveTo = false;
+							}
+							else if (expectedTerminalCursorPosition.x == x && expectedTerminalCursorPosition.y == y - 1)
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.LineFeed
+								});
+								needMoveTo = false;
+							}
+							else
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.MoveTo,
+									X = x,
+									Y = y
+								});
+							}
+
+							if (y == 1 && x == 1)
+							{
+								Debug.Log("Moved cursor to (1,1)");
+								Debug.Log($"Expected cursor was at ({expectedTerminalCursorPosition.x},{expectedTerminalCursorPosition.y})");
+								Debug.Log($"Actual cell is '{cell.GetChar(TerminalDefinition)}'");
+
+							}
+
+							//terminalCommands.Add(new TerminalCommand()
+							//{
+							//	CommandType = TerminalCommandType.MoveTo,
+							//	X = x,
+							//	Y = y
+							//});
+
 							expectedTerminalCursorPosition.x = x;
 							expectedTerminalCursorPosition.y = y;
 						}
@@ -417,18 +498,57 @@ namespace InGameTerminal
 						if (movedCursor)
 						{
 							expectedTerminalCursorPosition.x++;
-							if (expectedTerminalCursorPosition.x >= Width)
+							//if (expectedTerminalCursorPosition.x >= Width)
+							//{
+							//	expectedTerminalCursorPosition.x = 0;
+							//	expectedTerminalCursorPosition.y++;
+							//}
+							//if (expectedTerminalCursorPosition.y >= Height)
+							//{
+							//	expectedTerminalCursorPosition.y = 0;
+							//}
+						}
+
+						// EL check - only use EL optimization if:
+						// 1. We're far enough from the end of the line to make it worthwhile
+						// 2. All remaining cells on this line are spaces
+						// 3. At least some remaining cells actually need to be cleared (differ from previous buffer OR we're doing a redraw)
+						if (x < Width - 3)
+						{
+							bool allRemainingAreSpaces = true;
+							bool anyNeedClearing = false;
+							
+							for (int x2 = x + 1; x2 < Width; x2++)
 							{
-								expectedTerminalCursorPosition.x = 0;
-								expectedTerminalCursorPosition.y++;
+								TerminalBufferValue lookaheadCell = terminalBuffer[x2, y];
+								if (!lookaheadCell.IsSpace(TerminalDefinition))
+								{
+									allRemainingAreSpaces = false;
+									break;
+								}
+								// Check if this cell needs to be updated (previous had content that needs erasing)
+								TerminalBufferValue previousLookaheadCell = previousTerminalBuffer[x2, y];
+								if (redraw || lookaheadCell != previousLookaheadCell)
+								{
+									anyNeedClearing = true;
+								}
 							}
-							if (expectedTerminalCursorPosition.y >= Height)
+							
+							if (allRemainingAreSpaces && anyNeedClearing)
 							{
-								expectedTerminalCursorPosition.y = 0;
+								// All remaining cells on this line are spaces and need clearing
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.EL_CursorToEnd
+								});
+								// Break out of x loop to move to next line
+								// Don't increment y here - the outer for loop will do it
+								break;
 							}
 						}
 					}
 				}
+
 			}
 			if (terminalCommands.Count == 1)
 			{
@@ -894,8 +1014,8 @@ namespace InGameTerminal
 				0
 			);
 			_rectTransform.localScale = new Vector3(
-				1,
-				TerminalDefinition.PixelHeight,
+				2,
+				TerminalDefinition.PixelHeight*2,
 				0
 			);
 

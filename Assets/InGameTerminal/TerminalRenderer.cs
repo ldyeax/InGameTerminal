@@ -46,6 +46,10 @@ namespace InGameTerminal
 		[SerializeField]
 		private float uvInsetPixels = 0.25f;
 
+		[SerializeField]
+		[Tooltip("Snap vertex positions to pixel boundaries for crisp 1-pixel lines")]
+		private bool pixelSnap = true;
+
 		private Canvas _unityCanvas;
 		private CanvasRenderer _canvasRenderer;
 
@@ -62,6 +66,41 @@ namespace InGameTerminal
 
 		#region mesh
 		private Mesh _mesh;
+
+		/// <summary>
+		/// Snaps an X position to the nearest pixel boundary.
+		/// </summary>
+		private float SnapToPixelX(float value)
+		{
+			if (!pixelSnap)
+				return value;
+			
+			// X has no scaling, so just round to nearest pixel
+			return Mathf.Round(value);
+		}
+
+		/// <summary>
+		/// Snaps a Y position to the nearest pixel boundary, accounting for PixelHeight scale.
+		/// The local Y coordinate is scaled by PixelHeight, so we need to:
+		/// 1. Calculate what the screen Y would be (localY * pixelHeight)
+		/// 2. Round that to a pixel boundary
+		/// 3. Convert back to local space (screenY / pixelHeight)
+		/// </summary>
+		private float SnapToPixelY(float localY)
+		{
+			if (!pixelSnap || _terminalDefinition == null)
+				return localY;
+			
+			float pixelHeight = _terminalDefinition.PixelHeight;
+			if (pixelHeight <= 0)
+				pixelHeight = 1.0f;
+			
+			// Transform to screen space, snap, transform back
+			float screenY = localY * pixelHeight;
+			float snappedScreenY = Mathf.Round(screenY);
+			return snappedScreenY / pixelHeight;
+		}
+
 		private void InitMesh()
 		{
 			_mesh.Clear();
@@ -131,6 +170,8 @@ namespace InGameTerminal
 			var atlastXY = _terminalDefinition.CharToXY(c);
 			var atlasX = atlastXY.x;
 			var atlasY = atlastXY.y;
+			
+			// Calculate pixel positions - use integer math to ensure exact positioning
 			float pixelX = terminalX * _terminalDefinition.GlyphWidth;
 			float pixelY = terminalY * _terminalDefinition.GlyphHeight;
 
@@ -142,18 +183,21 @@ namespace InGameTerminal
 			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows - insetV;
 			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows + insetV;
 
-			// Calculate vertex positions
-			float xPos = pixelX;
-			float yPos = -pixelY; // Flip Y for UI space
-
-			_terminalDefinition.AlignX(ref xPos);
-			_terminalDefinition.AlignY(ref yPos);
+			// Calculate vertex positions with pixel snapping for crisp lines
+			// X snapping is straightforward since X scale is 1
+			float xLeft = SnapToPixelX(pixelX);
+			float xRight = SnapToPixelX(pixelX + _terminalDefinition.GlyphWidth);
+			
+			// Y snapping must account for PixelHeight scale factor
+			// Local Y is negated for UI space (top-left origin)
+			float yTop = SnapToPixelY(-pixelY);
+			float yBottom = SnapToPixelY(-pixelY - _terminalDefinition.GlyphHeight);
 
 			// Add quad vertices (top-left origin)
-			vertices.Add(new Vector3(xPos, yPos, 0));
-			vertices.Add(new Vector3(xPos + _terminalDefinition.GlyphWidth, yPos, 0));
-			vertices.Add(new Vector3(xPos + _terminalDefinition.GlyphWidth, yPos - _terminalDefinition.GlyphHeight, 0));
-			vertices.Add(new Vector3(xPos, yPos - _terminalDefinition.GlyphHeight, 0));
+			vertices.Add(new Vector3(xLeft, yTop, 0));
+			vertices.Add(new Vector3(xRight, yTop, 0));
+			vertices.Add(new Vector3(xRight, yBottom, 0));
+			vertices.Add(new Vector3(xLeft, yBottom, 0));
 
 			// Add UVs
 			uvs.Add(new Vector2(uvLeft, uvTop));
@@ -281,15 +325,15 @@ namespace InGameTerminal
 							DrawCharToMesh(atlasXY.x, atlasXY.y, position.x, position.y);
 						}
 						position.x++;
-						if (position.x >= terminal.Width)
-						{
-							position.x = 0;
-							position.y++;
-						}
-						if (position.y >= terminal.Height)
-						{
-							position.y = 0;
-						}
+						//if (position.x >= terminal.Width)
+						//{
+						//	position.x = 0;
+						//	position.y++;
+						//}
+						//if (position.y >= terminal.Height)
+						//{
+						//	position.y = 0;
+						//}
 						break;
 					case TerminalCommandType.Box_Horizontal:
 					case TerminalCommandType.Box_Vertical:
@@ -304,15 +348,15 @@ namespace InGameTerminal
 					case TerminalCommandType.Box_DownTee:
 						DrawCharToMesh(command.X, command.Y, position.x, position.y);
 						position.x++;
-						if (position.x >= terminal.Width)
-						{
-							position.x = 0;
-							position.y++;
-						}
-						if (position.y >= terminal.Height)
-						{
-							position.y = 0;
-						}
+						//if (position.x >= terminal.Width)
+						//{
+						//	position.x = 0;
+						//	position.y++;
+						//}
+						//if (position.y >= terminal.Height)
+						//{
+						//	position.y = 0;
+						//}
 						break;
 					//case TerminalCommandType.Byte:
 					//	if (position.x >= 0 && position.x < terminal.Width &&
@@ -334,34 +378,18 @@ namespace InGameTerminal
 					//	break;
 					case TerminalCommandType.Up:
 						position.y--;
-						if (position.y < 0)
-						{
-							position.y = terminal.Height - 1;
-						}
 						break;
 
 					case TerminalCommandType.Down:
 						position.y++;
-						if (position.y >= terminal.Height)
-						{
-							position.y = 0;
-						}
 						break;
 
 					case TerminalCommandType.Left:
 						position.x--;
-						if (position.x < 0)
-						{
-							position.x = terminal.Width - 1;
-						}
 						break;
 
 					case TerminalCommandType.Right:
 						position.x++;
-						if (position.x >= terminal.Width)
-						{
-							position.x = 0;
-						}
 						break;
 
 					case TerminalCommandType.MoveTo:
@@ -375,10 +403,6 @@ namespace InGameTerminal
 
 					case TerminalCommandType.LineFeed:
 						position.y++;
-						if (position.y >= terminal.Height)
-						{
-							position.y = 0;
-						}
 						break;
 
 					case TerminalCommandType.Italic:
@@ -401,10 +425,18 @@ namespace InGameTerminal
 						blink = !blink;
 						break;
 
-					case TerminalCommandType.EL:
+					case TerminalCommandType.EL_CursorToEnd:
 						// Erase in Line - clear from cursor to end of line
 						
 						for (int x = position.x; x < terminal.Width; x++)
+						{
+							DrawCharToMesh(spaceXY.x, spaceXY.y, x, position.y);
+						}
+						break;
+
+					case TerminalCommandType.EL_BeginningToCursor:
+						// Erase in Line - clear from beginning of line to cursor
+						for (int x = 0; x <= position.x; x++)
 						{
 							DrawCharToMesh(spaceXY.x, spaceXY.y, x, position.y);
 						}
@@ -459,9 +491,11 @@ namespace InGameTerminal
 					yield return null;
 					continue;
 				}
-				int commandsPerSecond = (int)(simulatedBaudRate / 10.0f); // 1 start bit, 8 data bits, 1 stop bit; estimate 1 byte per command 
-				var waitTime = new WaitForSeconds(1.0f / commandsPerSecond);
+				int commandsPerSecond = (int)(simulatedBaudRate / 8.0f);
 				int commandsPerFrame = commandsPerSecond / FrameRate;
+				if (commandsPerFrame < 1) commandsPerFrame = 1;
+				// Wait time is the time to transmit one batch of commands
+				var waitTime = new WaitForSeconds((float)commandsPerFrame / commandsPerSecond);
 				if (readyToDraw)
 				{
 					int start = 0;
