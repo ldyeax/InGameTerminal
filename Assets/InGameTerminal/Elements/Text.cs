@@ -21,8 +21,27 @@ namespace InGameTerminal.Elements
 			EditorSceneManager.MarkSceneDirty(go.scene);
 		}
 
+		public bool Transparent = false;
+		[SerializeField]
+		private string transparentChar = " ";
+		public char TransparentChar
+		{
+			get
+			{
+				if (string.IsNullOrEmpty(transparentChar))
+				{
+					return ' ';
+				}
+				return transparentChar[0];
+			}
+			set
+			{
+				transparentChar = value.ToString();
+			}
+		}
 		[SerializeField]
 		[InspectorLabel("Text")]
+		[TextArea(100, 100)]
 		public string Contents = "Hello, World!";
 	}
 }

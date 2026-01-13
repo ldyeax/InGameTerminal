@@ -462,10 +462,18 @@ namespace InGameTerminal
 					string contents = text.Contents;
 					if (string.IsNullOrEmpty(contents))
 						continue;
-
+					contents = contents.Replace("\r\n", "\n").Replace("\r", "\n");
 					for (int i = 0; i < contents.Length; i++)
 					{
 						char c = contents[i];
+
+						bool isNewline = c == '\n';
+
+						if (isNewline)
+						{
+							position.y++;
+							position.x = bounds.xMin;
+						}
 
 						// Bounds check before writing
 						if (position.x < 0 || position.x >= Width ||
@@ -475,15 +483,23 @@ namespace InGameTerminal
 							goto endText;
 						}
 
-						ref TerminalBufferValue cell = ref terminalBuffer[
-							position.x,
-							position.y
-						];
-						cell = currentState;
-						cell.CharacterBank = TerminalCharacterBank.ASCII;
-						cell.HasTerminalCommand = false;
-						cell.SetChar(TerminalDefinition, c);
-						cell.ConnectorID = 0;
+						if (isNewline)
+						{
+							continue;
+						}
+
+						if (!(text.Transparent && c == text.TransparentChar))
+						{
+							ref TerminalBufferValue cell = ref terminalBuffer[
+								position.x,
+								position.y
+							];
+							cell = currentState;
+							cell.CharacterBank = TerminalCharacterBank.ASCII;
+							cell.HasTerminalCommand = false;
+							cell.SetChar(TerminalDefinition, c);
+							cell.ConnectorID = 0;
+						}
 
 						position.x++;
 
@@ -591,6 +607,9 @@ namespace InGameTerminal
 				return;
 			}
 			SwapAndClearBuffer(ref terminalState);
+
+			// Reset connector ID counter so IDs are deterministic between frames
+			nextConnectorID = 1;
 
 			TerminalBufferValue currentState = default;
 
