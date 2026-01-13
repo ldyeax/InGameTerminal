@@ -6,6 +6,8 @@ Shader "InGameTerminal/PixelPerfect"
         _Color ("Tint", Color) = (1,1,1,1)
         [Toggle] _PixelSnap ("Pixel Snap", Float) = 1
         _MinPixelSize ("Min Screen Pixels Per Texel", Range(1, 4)) = 1
+        _ScanlineGap ("Scanline Gap", Range(0, 0.5)) = 0.1
+        _PixelRoundness ("Pixel Roundness", Range(0, 1)) = 0.5
     }
     
     SubShader
@@ -53,6 +55,8 @@ Shader "InGameTerminal/PixelPerfect"
             fixed4 _Color;
             float _PixelSnap;
             float _MinPixelSize;
+            float _ScanlineGap;
+            float _PixelRoundness;
             
             v2f vert(appdata v)
             {
@@ -128,6 +132,39 @@ Shader "InGameTerminal/PixelPerfect"
                 else
                 {
                     col = tex2D(_MainTex, uv);
+                }
+                
+                // Calculate position within the current texel (0 to 1)
+                float2 texelPos = frac(uv * float2(_MainTex_TexelSize.z, _MainTex_TexelSize.w));
+                
+                // Apply vertical-only pixel rounding (horizontal scanline style)
+                // This creates continuous horizontal lines while keeping vertical dot separation
+                if (_PixelRoundness > 0.001)
+                {
+                    // Only use vertical position for the dot effect
+                    // Convert vertical texel position to -1 to 1 range (center at 0)
+                    float centeredY = texelPos.y * 2.0 - 1.0;
+                    
+                    // Calculate distance from vertical center only
+                    float dist = abs(centeredY);
+                    
+                    // Create vertical falloff (rounded top and bottom, but continuous horizontally)
+                    float edgeStart = 1.0 - _PixelRoundness * 0.5;
+                    float dotMask = 1.0 - smoothstep(edgeStart, 1.0, dist);
+                    
+                    col.rgb *= dotMask;
+                }
+                
+                // Apply scanline gap effect
+                if (_ScanlineGap > 0.001)
+                {
+                    // Create gap at the bottom of each texel row
+                    // When texelPos.y is close to 1 (bottom of texel), darken the pixel
+                    float gapStart = 1.0 - _ScanlineGap;
+                    float scanlineMask = smoothstep(gapStart, 1.0, texelPos.y);
+                    
+                    // Darken the gap area
+                    col.rgb *= (1.0 - scanlineMask);
                 }
                 
                 return col * i.color;
