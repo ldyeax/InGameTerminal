@@ -1,6 +1,7 @@
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
 using System;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
 
 namespace InGameTerminal.SerialDriver
@@ -8,6 +9,8 @@ namespace InGameTerminal.SerialDriver
 	public sealed class SerialDriver : ISerialDriver
 	{
 		private SafeFileHandle _handle;
+
+		public bool IsOpen => _handle != null && !_handle.IsInvalid && !_handle.IsClosed;
 
 		public void Open(string portName /* e.g. "COM3" */, int baud = 115200)
 		{
@@ -49,6 +52,18 @@ namespace InGameTerminal.SerialDriver
 			};
 			if (!SetCommTimeouts(_handle, ref timeouts))
 				throw new InvalidOperationException($"SetCommTimeouts failed err={Marshal.GetLastWin32Error()}");
+
+			// send Reset Terminal command
+			
+			byte[] resetTerminal = System.Text.Encoding.ASCII.GetBytes("\u001b[!p");
+			Write(resetTerminal, 0, resetTerminal.Length);
+
+			byte[] homeCursorClearScreen = System.Text.Encoding.ASCII.GetBytes("\u001b[H\u001b[2J");
+			Write(homeCursorClearScreen, 0, homeCursorClearScreen.Length);
+
+			string testString = "Windows serial driver OK\r\n";
+			byte[] testBytes = System.Text.Encoding.ASCII.GetBytes(testString);
+			Write(testBytes, 0, testBytes.Length);
 		}
 
 		public int Read(byte[] buffer, int offset, int count)
@@ -67,10 +82,15 @@ namespace InGameTerminal.SerialDriver
 				throw new InvalidOperationException($"WriteFile failed err={Marshal.GetLastWin32Error()}");
 		}
 
-		public void Dispose()
+		public void Close()
 		{
 			_handle?.Dispose();
 			_handle = null;
+		}
+
+		public void Dispose()
+		{
+			Close();
 		}
 
 		// Win32 interop
@@ -136,6 +156,5 @@ namespace InGameTerminal.SerialDriver
 			public uint WriteTotalTimeoutConstant;
 		}
 	}
-#endif
-
 }
+#endif

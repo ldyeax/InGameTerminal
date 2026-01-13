@@ -68,7 +68,7 @@ namespace InGameTerminal
 		}
 		public static Vector2Int CharToXY(this ITerminalDefinition terminalDefinition, char c)
 		{
-			Vector2Int ret = default;
+			Vector2Int ret = new Vector2Int(-1, -1);
 			if (terminalDefinition is IChartoXY chartoXY)
 			{
 				ret = chartoXY.CharToXY(c);
@@ -79,6 +79,15 @@ namespace InGameTerminal
 				ret.x = index % terminalDefinition.AtlasCols;
 				ret.y = index / terminalDefinition.AtlasCols;
 			}
+			return ret;
+		}
+		public static Vector2Int ByteToXY(this ITerminalDefinition terminalDefinition, byte b)
+		{
+			int index = (int)b;
+			Vector2Int ret = new Vector2Int();
+			ret.x = index % terminalDefinition.AtlasCols;
+			ret.y = index / terminalDefinition.AtlasCols;
+			
 			return ret;
 		}
 		public static char XYToChar(this ITerminalDefinition terminalDefinition, int x, int y)

@@ -38,64 +38,6 @@ namespace InGameTerminal
 
 		[SerializeField]
 		private Terminal terminal;
-// 		List<TerminalCommand> terminalCommands = new List<TerminalCommand>();
-		//private void BuildTerminalCommands()
-		//{
-		//	terminalCommands.Clear();
-		//	terminalCommands.Add(new TerminalCommand()
-		//	{
-		//		CommandType = TerminalCommandType.HomeCursor
-		//	});
-		//	if (firstUpdate)
-		//	{
-		//		terminalCommands.Add(new TerminalCommand()
-		//		{
-		//			CommandType = TerminalCommandType.EraseInDisplay
-		//		});
-		//		return;
-		//	}
-
-		//	Vector2Int cursorPosition = default;
-			
-		//	for (int y = 0; y < terminal.Height; y++)
-		//	{
-		//		for (int x = 0; x < terminal.Width; x++)
-		//		{
-		//			var cell = terminalBuffer[x, y];
-		//			var previousCell = previousTerminalBuffer[x, y];
-		//			if (cell != previousCell)
-		//			{
-		//				//Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(_terminalDefinition)}' to '{cell.GetChar(_terminalDefinition)}'");
-		//				if (cursorPosition.x != x || cursorPosition.y != y)
-		//				{
-		//					terminalCommands.Add(new TerminalCommand()
-		//					{
-		//						CommandType = TerminalCommandType.MoveTo,
-		//						X = x,
-		//						Y = y
-		//					});
-		//				}
-		//				terminalCommands.Add(new TerminalCommand()
-		//				{
-		//					Char = cell.GetChar(_terminalDefinition),
-		//					X = x,
-		//					Y = y
-		//				});
-		//				cursorPosition.x++;
-		//				if (cursorPosition.x > terminal.Width)
-		//				{
-		//					cursorPosition.x = 0;
-		//					cursorPosition.y++;
-		//				}
-		//				if (cursorPosition.y > terminal.Height)
-		//				{
-		//					cursorPosition.y = 0;
-		//				}
-		//			}
-		//		}
-		//	}
-		//}
-
 		
 		private Canvas _unityCanvas;
 		private CanvasRenderer _canvasRenderer;
@@ -273,10 +215,11 @@ namespace InGameTerminal
 				switch (command.CommandType)
 				{
 					case TerminalCommandType.Char:
+					case TerminalCommandType.Byte:
 						if (position.x >= 0 && position.x < terminal.Width &&
 							position.y >= 0 && position.y < terminal.Height)
 						{
-							Vector2Int atlasXY = _terminalDefinition.CharToXY(command.Char);
+							Vector2Int atlasXY = _terminalDefinition.CharToXY((char)command.X);
 							DrawCharToMesh(atlasXY.x, atlasXY.y, position.x, position.y);
 						}
 						position.x++;
@@ -290,7 +233,47 @@ namespace InGameTerminal
 							position.y = 0;
 						}
 						break;
-
+					case TerminalCommandType.Box_Horizontal:
+					case TerminalCommandType.Box_Vertical:
+					case TerminalCommandType.Box_TopLeftCorner:
+					case TerminalCommandType.Box_TopRightCorner:
+					case TerminalCommandType.Box_BottomLeftCorner:
+					case TerminalCommandType.Box_BottomRightCorner:
+					case TerminalCommandType.Box_Cross:
+					case TerminalCommandType.Box_LeftTee:
+					case TerminalCommandType.Box_RightTee:
+					case TerminalCommandType.Box_UpTee:
+					case TerminalCommandType.Box_DownTee:
+						DrawCharToMesh(command.X, command.Y, position.x, position.y);
+						position.x++;
+						if (position.x >= terminal.Width)
+						{
+							position.x = 0;
+							position.y++;
+						}
+						if (position.y >= terminal.Height)
+						{
+							position.y = 0;
+						}
+						break;
+					//case TerminalCommandType.Byte:
+					//	if (position.x >= 0 && position.x < terminal.Width &&
+					//		position.y >= 0 && position.y < terminal.Height)
+					//	{
+					//		Vector2Int atlasXY = _terminalDefinition.ByteToXY((byte)command.X);
+					//		DrawCharToMesh(atlasXY.x, atlasXY.y, position.x, position.y);
+					//	}
+					//	position.x++;
+					//	if (position.x >= terminal.Width)
+					//	{
+					//		position.x = 0;
+					//		position.y++;
+					//	}
+					//	if (position.y >= terminal.Height)
+					//	{
+					//		position.y = 0;
+					//	}
+					//	break;
 					case TerminalCommandType.Up:
 						position.y--;
 						if (position.y < 0)

@@ -2,6 +2,12 @@ using UnityEngine;
 
 namespace InGameTerminal
 {
+	public enum TerminalCharacterBank
+	{
+		ASCII = 0,
+		G1,
+
+	}
 	public struct TerminalBufferValue
 	{
 		private ITerminalDefinition _terminalDefinition;
@@ -16,10 +22,22 @@ namespace InGameTerminal
 			Underline = false;
 			Inverted = false;
 			Blink = false;
+			DeviceBytes = 0;
+			DeviceByte1 = 0;
+			DeviceByte2 = 0;
+			DeviceByte3 = 0;
+			DeviceByte4 = 0;
+			CharacterBank = TerminalCharacterBank.ASCII;
+			HasTerminalCommand = false;
+			TerminalCommandType = TerminalCommandType.Char;
 		}
 		public readonly char GetChar(ITerminalDefinition terminalDefinition)
 		{
 			return terminalDefinition.XYToChar(AtlasX, AtlasY);
+		}
+		public readonly byte GetByte(ITerminalDefinition terminalDefinition)
+		{
+			return (byte)terminalDefinition.XYToChar(AtlasX, AtlasY);
 		}
 		public void SetChar(ITerminalDefinition terminalDefinition, char c)
 		{
@@ -27,6 +45,18 @@ namespace InGameTerminal
 			AtlasX = charXY.x;
 			AtlasY = charXY.y;
 		}
+		public void SetByte(ITerminalDefinition terminalDefinition, byte b)
+		{
+			Vector2Int charXY = terminalDefinition.ByteToXY(b);
+			AtlasX = charXY.x;
+			AtlasY = charXY.y;
+		}
+		public TerminalCharacterBank CharacterBank;
+		public int DeviceBytes;
+		public byte DeviceByte1;
+		public byte DeviceByte2;
+		public byte DeviceByte3;
+		public byte DeviceByte4;
 		public int AtlasX;
 		public int AtlasY;
 		public int ConnectorID;
@@ -35,6 +65,8 @@ namespace InGameTerminal
 		public bool Underline;
 		public bool Inverted;
 		public bool Blink;
+		public bool HasTerminalCommand;
+		public TerminalCommandType TerminalCommandType;
 		public static bool operator ==(TerminalBufferValue a, TerminalBufferValue b)
 		{
 			return
@@ -45,7 +77,15 @@ namespace InGameTerminal
 				a.Bold == b.Bold &&
 				a.Underline == b.Underline &&
 				a.Inverted == b.Inverted &&
-				a.Blink == b.Blink;
+				a.Blink == b.Blink &&
+				a.DeviceBytes == b.DeviceBytes &&
+				a.DeviceByte1 == b.DeviceByte1 &&
+				a.DeviceByte2 == b.DeviceByte2 &&
+				a.DeviceByte3 == b.DeviceByte3 &&
+				a.DeviceByte4 == b.DeviceByte4 &&
+				a.CharacterBank == b.CharacterBank &&
+				a.HasTerminalCommand == b.HasTerminalCommand &&
+				a.TerminalCommandType == b.TerminalCommandType;
 		}
 		public static bool operator !=(TerminalBufferValue a, TerminalBufferValue b)
 		{
@@ -61,7 +101,8 @@ namespace InGameTerminal
 		}
 		public override readonly int GetHashCode()
 		{
-			return base.GetHashCode();
+			string s = $"{AtlasX},{AtlasY},{ConnectorID},{Italic},{Bold},{Underline},{Inverted},{Blink},{DeviceBytes},{DeviceByte1},{DeviceByte2},{DeviceByte3},{DeviceByte4},{CharacterBank},{HasTerminalCommand},{TerminalCommandType}";
+			return s.GetHashCode();
 		}
 	}
 }

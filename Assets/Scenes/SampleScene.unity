@@ -346,6 +346,7 @@ MonoBehaviour:
   TerminalDefinition: {fileID: 11400000, guid: 7178f9ce9888a124da86ccec0654e4d3, type: 2}
   _unityCanvas: {fileID: 498807502}
   _rectTransform: {fileID: 498807504}
+  Redraw: 0
 --- !u!224 &498807504
 RectTransform:
   m_ObjectHideFlags: 0
@@ -642,8 +643,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 765, y: -72}
-  m_SizeDelta: {x: 44.999992, y: 180}
+  m_AnchoredPosition: {x: 675, y: -72}
+  m_SizeDelta: {x: 135.00006, y: 180}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &952238705
 MonoBehaviour:
@@ -884,8 +885,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 675, y: -48}
-  m_SizeDelta: {x: 195, y: 12}
+  m_AnchoredPosition: {x: 540, y: -48}
+  m_SizeDelta: {x: 330.00003, y: 12}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1074235623
 MonoBehaviour:
@@ -1236,7 +1237,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 210, y: -132}
-  m_SizeDelta: {x: 854.99994, y: 12}
+  m_SizeDelta: {x: 930.00006, y: 12}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1295639990
 MonoBehaviour:
@@ -1403,6 +1404,7 @@ MonoBehaviour:
   TerminalDefinition: {fileID: 11400000, guid: 7178f9ce9888a124da86ccec0654e4d3, type: 2}
   _unityCanvas: {fileID: 1521666368}
   _rectTransform: {fileID: 1521666370}
+  Redraw: 1
 --- !u!224 &1521666370
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1625,6 +1627,7 @@ MonoBehaviour:
   TerminalDefinition: {fileID: 11400000, guid: 7178f9ce9888a124da86ccec0654e4d3, type: 2}
   _unityCanvas: {fileID: 1781043514}
   _rectTransform: {fileID: 1781043516}
+  Redraw: 0
 --- !u!224 &1781043516
 RectTransform:
   m_ObjectHideFlags: 0

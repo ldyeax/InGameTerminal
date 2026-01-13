@@ -1,18 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using InGameTerminal.SerialDriver;
 
 namespace InGameTerminal.TerminalBridge
 {
 	/// <summary>
 	/// VT320 terminal bridge - converts terminal commands to VT320 escape sequences
 	/// </summary>
-	public class VT320 : ITerminalBridge
+	public class VT320 : ITerminalBridge, IDisposable
 	{
-		SerialDevice serialDevice = default;
+		private readonly ISerialDriver _serialDriver;
+		private volatile bool _running = true;
 
 		private TerminalState terminalState;
 
@@ -20,30 +21,49 @@ namespace InGameTerminal.TerminalBridge
 
 		private List<TerminalCommand> terminalCommands = new List<TerminalCommand>();
 
-		private bool firstUpdate = true;
+		private bool redraw = true;
 
 		// VT320 control codes
 		private const byte ESC = 0x1B;  // Escape
 		private const byte CSI_7BIT = 0x5B; // '[' - used after ESC for 7-bit CSI
+		private const byte SO = 0x0E;  // Shift Out - invoke G1 character set
+		private const byte SI = 0x0F;  // Shift In - invoke G0 character set
 		
 		// Common escape sequence prefixes
 		private static readonly byte[] CSI = new byte[] { ESC, CSI_7BIT }; // ESC [
 
-		void ITerminalBridge.Update(Terminal terminal)
+		// Designate G0 as DEC Special Graphics: ESC ( 0
+		private static readonly byte[] DESIGNATE_G0_GRAPHICS = new byte[] { ESC, (byte)'(', (byte)'0' };
+		// Designate G0 as ASCII: ESC ( B
+		private static readonly byte[] DESIGNATE_G0_ASCII = new byte[] { ESC, (byte)'(', (byte)'B' };
+
+		// ISO-8859-1 (Latin1) encoding for extended characters
+		private static readonly Encoding Latin1 = Encoding.GetEncoding("iso-8859-1");
+
+		bool readyForUpdate = true;
+		bool readyToDraw = false;
+
+		int lastProcessedcommands = 0;
+
+
+		bool ITerminalBridge.Update(Terminal terminal, bool redraw)
 		{
-			if (Monitor.TryEnter(readyLock))
+			this.redraw = this.redraw || redraw;
+			if (readyForUpdate)
 			{
-				try
+				if (lastProcessedcommands > 0)
 				{
-					terminal.BuildBuffer(ref terminalState, firstUpdate);
-					terminal.BuildTerminalCommands(ref terminalState, terminalCommands, firstUpdate);
-					firstUpdate = false;
+					UnityEngine.Debug.Log($"VT320: Processed {lastProcessedcommands} commands at {UnityEngine.Time.time}");
 				}
-				finally
-				{
-					Monitor.Exit(readyLock);
-				}
+				readyForUpdate = false;
+				terminal.BuildBuffer(ref terminalState, this.redraw);
+				terminal.BuildTerminalCommands(ref terminalState, terminalCommands, this.redraw);
+				this.redraw = false;
+				readyToDraw = true;
+				UnityEngine.Debug.Log($"VT320: Queued {terminalCommands.Count} commands at {UnityEngine.Time.time}");
+				return true;
 			}
+			return false;
 		}
 
 		/// <summary>
@@ -53,19 +73,86 @@ namespace InGameTerminal.TerminalBridge
 		{
 			switch (command.CommandType)
 			{
+				case TerminalCommandType.Byte:
+					return new byte[] { (byte)command.X };
 				case TerminalCommandType.Char:
-					// Regular character - just send the byte
-					// For characters > 127, this assumes the terminal is set up for the appropriate character set
-					if (command.Char < 128)
+					if (command.X == 0)
 					{
-						return new byte[] { (byte)command.Char };
+						command.X = 0x20; // Replace null with space
 					}
-					else
+					// parse as Latin1
+					return Latin1.GetBytes(new char[] { (char)command.X });
+				//case TerminalCommandType.Byte:
+				//	return new byte[] { (byte)command.X };
+				case TerminalCommandType.InitBanks:
+					// Initialize character banks: G0 as ASCII, G1 as DEC Special Graphics
+					return new byte[]
 					{
-						
-						// Extended characters - send as-is (assumes 8-bit mode)
-						return Encoding.Latin1.GetBytes(new char[] { command.Char });
+						ESC, (byte)'(', (byte)'B', // Designate G0 as ASCII
+						ESC, (byte)')', (byte)'0'  // Designate G1 as DEC Special Graphics
+					};
+				case TerminalCommandType.CharacterBank:
+					TerminalCharacterBank bank = (TerminalCharacterBank)command.X;
+					switch (bank)
+					{
+						case TerminalCharacterBank.ASCII:
+							return new byte[] { SI }; // Shift In - invoke G0 (ASCII)
+						case TerminalCharacterBank.G1:
+							return new byte[] { SO }; // Shift Out - invoke G1 (DEC Special Graphics)
 					}
+					return Array.Empty<byte>();
+/**
+ *Once DEC Special Graphics is selected (via G0+ESC(0 or G1+ESC)0 + SO), these ASCII bytes become line/corner symbols:
+ *
+ * x = vertical line
+ *
+ * q = horizontal line
+ *
+ * l = upper-left corner
+ *
+ * k = upper-right corner
+ *
+ * m = lower-left corner
+ *
+ * j = lower-right corner
+ *
+ * n = cross / plus
+ *
+ * t / u / v / w = tees (left/right/bottom/top) (depending on exact DEC set)
+ * 
+ **/
+				case TerminalCommandType.Box_Horizontal:
+					return new byte[] { (byte)'q' };
+
+				case TerminalCommandType.Box_Vertical:
+					return new byte[] { (byte)'x' };
+
+				case TerminalCommandType.Box_TopLeftCorner:
+					return new byte[] { (byte)'l' };
+
+				case TerminalCommandType.Box_TopRightCorner:
+					return new byte[] { (byte)'k' };
+
+				case TerminalCommandType.Box_BottomLeftCorner:
+					return new byte[] { (byte)'m' };
+
+				case TerminalCommandType.Box_BottomRightCorner:
+					return new byte[] { (byte)'j' };
+
+				case TerminalCommandType.Box_Cross:
+					return new byte[] { (byte)'n' };
+
+				case TerminalCommandType.Box_LeftTee:
+					return new byte[] { (byte)'u' };
+
+				case TerminalCommandType.Box_RightTee:
+					return new byte[] { (byte)'t' };
+
+				case TerminalCommandType.Box_UpTee:
+					return new byte[] { (byte)'v' };
+
+				case TerminalCommandType.Box_DownTee:
+					return new byte[] { (byte)'w' };
 
 				case TerminalCommandType.Up:
 					// CUU - Cursor Up: CSI Pn A
@@ -139,41 +226,48 @@ namespace InGameTerminal.TerminalBridge
 
 		void ThreadLoop()
 		{
-			while (true)
+			while (_running)
 			{
-				if (Monitor.TryEnter(readyLock, TimeSpan.FromMilliseconds(100)))
+				if (readyToDraw)
 				{
-					try
+					readyToDraw = false;
+					if (_serialDriver.IsOpen && terminalCommands.Count > 0)
 					{
-						if (serialDevice.IsOpen)
+						// Write commands to VT320
+						foreach (var command in terminalCommands)
 						{
-							// Write commands to VT320
-							foreach (var command in terminalCommands)
+							byte[] data = CommandToBytes(command);
+							if (data.Length > 0 && _serialDriver.IsOpen)
 							{
-								byte[] data = CommandToBytes(command);
-								if (data.Length > 0 && serialDevice.IsOpen)
-								{
-									serialDevice.Write(data, 0, data.Length);
-								}
+								_serialDriver.Write(data, 0, data.Length);
 							}
-							terminalCommands.Clear();
 						}
+						lastProcessedcommands = terminalCommands.Count;
+						terminalCommands.Clear();
 					}
-					finally
-					{
-						Monitor.Exit(readyLock);
-					}
+					readyForUpdate = true;
 				}
 			}
 		}
 
-		public VT320(SerialDevice serialDevice)
+		public VT320(ISerialDriver serialDriver)
 		{
-			this.serialDevice = serialDevice;
+			terminalState = new TerminalState()
+			{
+				terminalBuffer = new TerminalBufferValue[80, 24],
+				previousTerminalBuffer = new TerminalBufferValue[80, 24]
+			};
+			_serialDriver = serialDriver ?? throw new ArgumentNullException(nameof(serialDriver));
 			new Thread(ThreadLoop)
 			{
 				IsBackground = true
 			}.Start();
+		}
+
+		public void Dispose()
+		{
+			_running = false;
+			_serialDriver?.Dispose();
 		}
 	}
 }

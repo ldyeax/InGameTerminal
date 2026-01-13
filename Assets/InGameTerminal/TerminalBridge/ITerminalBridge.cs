@@ -6,6 +6,6 @@ namespace InGameTerminal
 {
 	public interface ITerminalBridge
 	{
-		public void Update(Terminal terminal);
+		public bool Update(Terminal terminal, bool redraw);
 	}
 }

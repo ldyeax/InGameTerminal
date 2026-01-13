@@ -1,5 +1,6 @@
 using InGameTerminal;
 using InGameTerminal.Elements;
+using InGameTerminal.SerialDriver;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
@@ -41,7 +42,9 @@ namespace InGameTerminal
 		[SerializeField]
 		private RectTransform _rectTransform;
 		public RectTransform RectTransform => _rectTransform;
-		private TerminalBridge.VT320 testTerminalBridge = new TerminalBridge.VT320();
+
+		private SerialDriver.SerialDriver testSerialDriver = null;
+		private ITerminalBridge testTerminalBridge;
 		private void EnsureSetup()
 		{
 			_unityCanvas = Util.GetOrCreateComponent<Canvas>(gameObject);
@@ -122,12 +125,18 @@ namespace InGameTerminal
 										// All four directions
 										cell.AtlasX = TerminalDefinition.CrossX;
 										cell.AtlasY = TerminalDefinition.CrossY;
+										cell.TerminalCommandType = TerminalCommandType.Box_Cross;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
 									}
 									else
 									{
 										// Above, below, left (no right) - LeftTee
 										cell.AtlasX = TerminalDefinition.LeftTeeX;
 										cell.AtlasY = TerminalDefinition.LeftTeeY;
+										cell.TerminalCommandType = TerminalCommandType.Box_LeftTee;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
 									}
 								}
 								else if (matchRight)
@@ -135,12 +144,18 @@ namespace InGameTerminal
 									// Above, below, right (no left) - RightTee
 									cell.AtlasX = TerminalDefinition.RightTeeX;
 									cell.AtlasY = TerminalDefinition.RightTeeY;
+									cell.TerminalCommandType = TerminalCommandType.Box_RightTee;
+									cell.CharacterBank = TerminalCharacterBank.G1;
+									cell.HasTerminalCommand = true;
 								}
 								else
 								{
 									// Above and below only - Vertical line
 									cell.AtlasX = TerminalDefinition.VerticalLineX;
 									cell.AtlasY = TerminalDefinition.VerticalLineY;
+									cell.TerminalCommandType = TerminalCommandType.Box_Vertical;
+									cell.CharacterBank = TerminalCharacterBank.G1;
+									cell.HasTerminalCommand = true;
 								}
 							}
 							else // no below
@@ -152,12 +167,18 @@ namespace InGameTerminal
 										// Above, left, right (no below) - UpTee
 										cell.AtlasX = TerminalDefinition.UpTeeX;
 										cell.AtlasY = TerminalDefinition.UpTeeY;
+										cell.TerminalCommandType = TerminalCommandType.Box_UpTee;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
 									}
 									else
 									{
 										// Above, left (no below, no right) - BottomRightCorner
 										cell.AtlasX = TerminalDefinition.BottomRightCornerX;
 										cell.AtlasY = TerminalDefinition.BottomRightCornerY;
+										cell.TerminalCommandType = TerminalCommandType.Box_BottomRightCorner;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
 									}
 								}
 								else if (matchRight)
@@ -165,12 +186,18 @@ namespace InGameTerminal
 									// Above, right (no below, no left) - BottomLeftCorner
 									cell.AtlasX = TerminalDefinition.BottomLeftCornerX;
 									cell.AtlasY = TerminalDefinition.BottomLeftCornerY;
+									cell.TerminalCommandType = TerminalCommandType.Box_BottomLeftCorner;
+									cell.CharacterBank = TerminalCharacterBank.G1;
+									cell.HasTerminalCommand = true;
 								}
 								else
 								{
 									// Above only - Vertical line
 									cell.AtlasX = TerminalDefinition.VerticalLineX;
 									cell.AtlasY = TerminalDefinition.VerticalLineY;
+									cell.TerminalCommandType = TerminalCommandType.Box_Vertical;
+									cell.CharacterBank = TerminalCharacterBank.G1;
+									cell.HasTerminalCommand = true;
 								}
 							}
 						}
@@ -185,12 +212,18 @@ namespace InGameTerminal
 										// Below, left, right (no above) - DownTee
 										cell.AtlasX = TerminalDefinition.DownTeeX;
 										cell.AtlasY = TerminalDefinition.DownTeeY;
+										cell.TerminalCommandType = TerminalCommandType.Box_DownTee;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
 									}
 									else
 									{
 										// Below, left (no above, no right) - TopRightCorner
 										cell.AtlasX = TerminalDefinition.TopRightCornerX;
 										cell.AtlasY = TerminalDefinition.TopRightCornerY;
+										cell.TerminalCommandType = TerminalCommandType.Box_TopRightCorner;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
 									}
 								}
 								else if (matchRight)
@@ -198,12 +231,18 @@ namespace InGameTerminal
 									// Below, right (no above, no left) - TopLeftCorner
 									cell.AtlasX = TerminalDefinition.TopLeftCornerX;
 									cell.AtlasY = TerminalDefinition.TopLeftCornerY;
+									cell.TerminalCommandType = TerminalCommandType.Box_TopLeftCorner;
+									cell.CharacterBank = TerminalCharacterBank.G1;
+									cell.HasTerminalCommand = true;
 								}
 								else
 								{
 									// Below only - Vertical line
 									cell.AtlasX = TerminalDefinition.VerticalLineX;
 									cell.AtlasY = TerminalDefinition.VerticalLineY;
+									cell.TerminalCommandType = TerminalCommandType.Box_Vertical;
+									cell.CharacterBank = TerminalCharacterBank.G1;
+									cell.HasTerminalCommand = true;
 								}
 							}
 							else // no above, no below
@@ -215,12 +254,18 @@ namespace InGameTerminal
 										// Left and right only - Horizontal line
 										cell.AtlasX = TerminalDefinition.HorizontalLineX;
 										cell.AtlasY = TerminalDefinition.HorizontalLineY;
+										cell.TerminalCommandType = TerminalCommandType.Box_Horizontal;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
 									}
 									else
 									{
 										// Left only - Horizontal line
 										cell.AtlasX = TerminalDefinition.HorizontalLineX;
 										cell.AtlasY = TerminalDefinition.HorizontalLineY;
+										cell.TerminalCommandType = TerminalCommandType.Box_Horizontal;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
 									}
 								}
 								else if (matchRight)
@@ -228,12 +273,18 @@ namespace InGameTerminal
 									// Right only - Horizontal line
 									cell.AtlasX = TerminalDefinition.HorizontalLineX;
 									cell.AtlasY = TerminalDefinition.HorizontalLineY;
+									cell.TerminalCommandType = TerminalCommandType.Box_Horizontal;
+									cell.CharacterBank = TerminalCharacterBank.G1;
+									cell.HasTerminalCommand = true;
 								}
 								else
 								{
 									// No matches - default to vertical line
 									cell.AtlasX = TerminalDefinition.VerticalLineX;
 									cell.AtlasY = TerminalDefinition.VerticalLineY;
+									cell.TerminalCommandType = TerminalCommandType.Box_Vertical;
+									cell.CharacterBank = TerminalCharacterBank.G1;
+									cell.HasTerminalCommand = true;
 								}
 							}
 						}
@@ -246,7 +297,7 @@ namespace InGameTerminal
 		public void BuildTerminalCommands(
 			ref TerminalState terminalState,
 			List<TerminalCommand> terminalCommands,
-			bool firstUpdate
+			bool redraw
 		)
 		{
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
@@ -257,24 +308,34 @@ namespace InGameTerminal
 			{
 				CommandType = TerminalCommandType.HomeCursor
 			});
-			if (firstUpdate)
+			if (redraw)
 			{
 				terminalCommands.Add(new TerminalCommand()
 				{
 					CommandType = TerminalCommandType.EraseInDisplay
 				});
-				return;
+				terminalCommands.Add(new TerminalCommand()
+				{
+					CommandType = TerminalCommandType.InitBanks
+				});
 			}
 
 			Vector2Int cursorPosition = default;
+			// Track the current character bank state of the terminal (starts as ASCII)
+			TerminalCharacterBank currentCharacterBank = TerminalCharacterBank.ASCII;
 
 			for (int y = 0; y < Height; y++)
 			{
 				for (int x = 0; x < Width; x++)
 				{
-					var cell = terminalBuffer[x, y];
-					var previousCell = previousTerminalBuffer[x, y];
-					if (cell != previousCell)
+					TerminalBufferValue cell = terminalBuffer[x, y];
+					TerminalBufferValue previousCell = previousTerminalBuffer[x, y];
+					bool drawCell = redraw;
+					if (!drawCell)
+					{
+						drawCell = cell != previousCell;
+					}
+					if (drawCell)
 					{
 						//Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(TerminalDefinition)}' to '{cell.GetChar(TerminalDefinition)}'");
 						if (cursorPosition.x != x || cursorPosition.y != y)
@@ -286,12 +347,46 @@ namespace InGameTerminal
 								Y = y
 							});
 						}
-						terminalCommands.Add(new TerminalCommand()
+						// Check against the current terminal state, not the previous cell
+						if (currentCharacterBank != cell.CharacterBank)
 						{
-							Char = cell.GetChar(TerminalDefinition),
-							X = x,
-							Y = y
-						});
+							terminalCommands.Add(new TerminalCommand()
+							{
+								CommandType = TerminalCommandType.CharacterBank,
+								X = (int)cell.CharacterBank
+							});
+							currentCharacterBank = cell.CharacterBank;
+						}
+						if (cell.HasTerminalCommand)
+						{
+							terminalCommands.Add(new TerminalCommand()
+							{
+								CommandType = cell.TerminalCommandType,
+								X = cell.AtlasX,
+								Y = cell.AtlasY
+							});
+						}
+						else
+						{
+							byte b = cell.GetByte(TerminalDefinition);
+							if (b < 127)
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.Char,
+									X = cell.GetChar(TerminalDefinition)
+								});
+							}
+							else
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.Byte,
+									X = cell.GetByte(TerminalDefinition)
+								});
+							}
+						}
+
 						cursorPosition.x++;
 						if (cursorPosition.x > Width)
 						{
@@ -304,6 +399,10 @@ namespace InGameTerminal
 						}
 					}
 				}
+			}
+			if (terminalCommands.Count == 1)
+			{
+				terminalCommands.Clear();
 			}
 		}
 		private void BuildBufferFromChildren(RectTransform rectTransform, TerminalBufferValue currentState, ref TerminalState terminalState)
@@ -350,6 +449,9 @@ namespace InGameTerminal
 							position.x,
 							position.y
 						];
+						cell = currentState;
+						cell.CharacterBank = TerminalCharacterBank.ASCII;
+						cell.HasTerminalCommand = false;
 						cell.SetChar(TerminalDefinition, c);
 						cell.ConnectorID = 0;
 
@@ -387,6 +489,9 @@ namespace InGameTerminal
 							];
 							cell.AtlasX = TerminalDefinition.HorizontalLineX;
 							cell.AtlasY = TerminalDefinition.HorizontalLineY;
+							cell.CharacterBank = TerminalCharacterBank.G1;
+							cell.HasTerminalCommand = true;
+							cell.TerminalCommandType = TerminalCommandType.Box_Horizontal;
 						}
 					}
 				endHorizontalLine:
@@ -484,6 +589,9 @@ namespace InGameTerminal
 				cell.AtlasX = TerminalDefinition.HorizontalLineX;
 				cell.AtlasY = TerminalDefinition.HorizontalLineY;
 				cell.ConnectorID = connectorID;
+				cell.CharacterBank = TerminalCharacterBank.G1;
+				cell.HasTerminalCommand = true;
+				cell.TerminalCommandType = TerminalCommandType.Box_Horizontal;
 			}
 		}
 
@@ -502,6 +610,9 @@ namespace InGameTerminal
 				cell.AtlasX = TerminalDefinition.VerticalLineX;
 				cell.AtlasY = TerminalDefinition.VerticalLineY;
 				cell.ConnectorID = connectorID;
+				cell.CharacterBank = TerminalCharacterBank.G1;
+				cell.HasTerminalCommand = true;
+				cell.TerminalCommandType = TerminalCommandType.Box_Vertical;
 			}
 		}
 
@@ -517,6 +628,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.TopLeftCornerX;
 			cell.AtlasY = TerminalDefinition.TopLeftCornerY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_TopLeftCorner;
 		}
 
 		private void DrawTopRightCornerToBuffer(
@@ -531,6 +645,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.TopRightCornerX;
 			cell.AtlasY = TerminalDefinition.TopRightCornerY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_TopRightCorner;
 		}
 
 		private void DrawBottomLeftCornerToBuffer(
@@ -545,6 +662,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.BottomLeftCornerX;
 			cell.AtlasY = TerminalDefinition.BottomLeftCornerY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_BottomLeftCorner;
 		}
 
 		private void DrawBottomRightCornerToBuffer(
@@ -559,6 +679,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.BottomRightCornerX;
 			cell.AtlasY = TerminalDefinition.BottomRightCornerY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_BottomRightCorner;
 		}
 
 		private void DrawLeftTeeToBuffer(
@@ -573,6 +696,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.LeftTeeX;
 			cell.AtlasY = TerminalDefinition.LeftTeeY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_LeftTee;
 		}
 
 		private void DrawRightTeeToBuffer(
@@ -587,6 +713,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.RightTeeX;
 			cell.AtlasY = TerminalDefinition.RightTeeY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_RightTee;
 		}
 
 		private void DrawUpTeeToBuffer(
@@ -601,6 +730,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.UpTeeX;
 			cell.AtlasY = TerminalDefinition.UpTeeY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_UpTee;
 		}
 
 		private void DrawDownTeeToBuffer(
@@ -615,6 +747,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.DownTeeX;
 			cell.AtlasY = TerminalDefinition.DownTeeY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_DownTee;
 		}
 
 		private void DrawCrossToBuffer(
@@ -629,6 +764,9 @@ namespace InGameTerminal
 			cell.AtlasX = TerminalDefinition.CrossX;
 			cell.AtlasY = TerminalDefinition.CrossY;
 			cell.ConnectorID = connectorID;
+			cell.CharacterBank = TerminalCharacterBank.G1;
+			cell.HasTerminalCommand = true;
+			cell.TerminalCommandType = TerminalCommandType.Box_Cross;
 		}
 
 		private void DrawBoxToBuffer(
@@ -671,6 +809,8 @@ namespace InGameTerminal
 				{
 					ref TerminalBufferValue cell = ref terminalBuffer[x, y];
 					cell.ConnectorID = connectorID;
+					cell.CharacterBank = TerminalCharacterBank.G1;
+					cell.HasTerminalCommand = true;
 				}
 			}
 		}
@@ -690,7 +830,8 @@ namespace InGameTerminal
 				}
 			}
 		}
-		// Update is called once per frame
+		public bool Redraw = false;
+		private float lastBridgeUpdateTime = 0f;
 		void Update()
 		{
 			if (TerminalDefinition == null)
@@ -715,8 +856,40 @@ namespace InGameTerminal
 			{
 				element.Align(TerminalDefinition);
 			}
+
+			float timeSinceLastUpdate = Time.time - lastBridgeUpdateTime;
+			if (timeSinceLastUpdate > 1.0f / 30.0f)
+			{
+				if (testTerminalBridge != null)
+				{
+					testTerminalBridge.Update(this, Redraw);
+				}
+				lastBridgeUpdateTime = Time.time;
+			}
+
+			Redraw = false;
 		}
 
-
+		private void OnEnable()
+		{
+			Redraw = true;
+			if (testSerialDriver == null)
+			{
+				testSerialDriver = new SerialDriver.SerialDriver();
+				testSerialDriver.Open("COM3", 19200);
+				testTerminalBridge = new TerminalBridge.VT320(
+					testSerialDriver
+				);
+			}
+		}
+		private void OnDisable()
+		{
+			if (testSerialDriver != null)
+			{
+				testSerialDriver.Close();
+				testSerialDriver = null;
+				testTerminalBridge = null;
+			}
+		}
 	}
 }
