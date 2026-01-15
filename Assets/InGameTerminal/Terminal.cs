@@ -1,5 +1,3 @@
-
-
 using InGameTerminal;
 using InGameTerminal.Elements;
 using InGameTerminal.SerialDriver;
@@ -705,7 +703,7 @@ namespace InGameTerminal
 				}
 			}
 		}
-		public void BuildBuffer(ref TerminalState terminalState, bool firstUpdate)
+		public void BuildBuffer(ref TerminalState terminalState, bool firstUpdate, bool redraw = false)
 		{
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
@@ -724,7 +722,10 @@ namespace InGameTerminal
 						currentChar.SetChar(TerminalDefinition, ' ');
 					}
 				}
-				return;
+				if (!redraw)
+				{
+					return;
+				}
 			}
 			SwapAndClearBuffer(ref terminalState);
 

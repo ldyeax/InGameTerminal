@@ -516,11 +516,11 @@ namespace InGameTerminal
 				yield return null; // Always yield to prevent infinite loop
 			}
 		}
-		private void Update()
+		private bool CheckSetupForUpdate()
 		{
 			if (DebugUpdate && !DebugReadyToUpdate)
 			{
-				return;
+				return false;
 			}
 			DebugReadyToUpdate = false;
 			if (!terminal)
@@ -530,7 +530,7 @@ namespace InGameTerminal
 			if (!terminal)
 			{
 				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a Terminal component.");
-				return;
+				return false;
 			}
 			if (!_unityCanvas)
 			{
@@ -543,12 +543,12 @@ namespace InGameTerminal
 			if (_terminalDefinition == null)
 			{
 				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a TerminalDefinition.");
-				return;
+				return false;
 			}
-			if (!readyToUpdate)
-			{
-				return;
-			}
+			return true;
+		}
+		private void UpdatePlaying()
+		{
 			readyToUpdate = false;
 			ref var terminalState = ref this.terminalState;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
@@ -560,10 +560,43 @@ namespace InGameTerminal
 				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
 				InitMesh();
 			}
+			if (!readyToUpdate)
+			{
+				return;
+			}
 			terminal.BuildBuffer(ref terminalState, firstUpdate);
 			terminal.BuildTerminalCommands(ref terminalState, terminalCommands, firstUpdate);
 			firstUpdate = false;
 			readyToDraw = true;
+		}
+		private void UpdateInEditor()
+		{
+			ref var terminalState = ref this.terminalState;
+			ref var terminalBuffer = ref terminalState.terminalBuffer;
+			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
+			if (terminalBuffer == null)
+			{
+				terminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
+				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
+				InitMesh();
+			}
+			terminal.BuildBuffer(ref terminalState, true);
+			DrawBuffer();
+		}
+		private void Update()
+		{
+			if (!CheckSetupForUpdate())
+			{
+				return;
+			}
+			if (Application.isPlaying)
+			{
+				UpdatePlaying();
+			}
+			else
+			{
+				UpdateInEditor();
+			}
 		}
 
 		private void OnEnable()
