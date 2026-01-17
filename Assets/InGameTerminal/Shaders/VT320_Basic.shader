@@ -5,9 +5,13 @@ Shader "InGameTerminal/VT320 Basic"
     Properties
 	{
 		_MainTex ("Atlas Texture", 2D) = "white" {}
-		
-
 		_Color ("Tint", Color) = (1,1,1,1)
+		
+		
+		
+		_PixelRoundness ("Pixel Roundness", Range(0, 2)) = 1
+		_RoundnessAspect ("Roundness Aspect (H/V)", Range(0.1, 10)) = 0.8
+		_HorizontalFactor ("Horizontal Factor", Range(0.0, 1.0)) = 0.0
 	}
     SubShader
     {
@@ -29,7 +33,6 @@ Shader "InGameTerminal/VT320 Basic"
         Pass
         {
             CGPROGRAM
-			#define ABCD 2
             #pragma vertex vert
             #pragma fragment frag
             

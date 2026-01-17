@@ -1,12 +1,10 @@
-using InGameTerminal;
 using InGameTerminal.Elements;
-using InGameTerminal.SerialDriver;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
+using System;
 
 namespace InGameTerminal
 {
@@ -23,6 +21,21 @@ namespace InGameTerminal
 			Undo.RegisterCreatedObjectUndo(go, "Create Terminal Screen");
 			Selection.activeObject = go;
 			EditorSceneManager.MarkSceneDirty(go.scene);
+		}
+
+		public int CanvasWidth
+		{
+			get
+			{
+				return Width * TerminalDefinition.GlyphWidth;
+			}
+		}
+		public int CanvasHeight
+		{
+			get
+			{
+				return Height * TerminalDefinition.GlyphHeight;
+			}
 		}
 
 		[SerializeField]
@@ -392,14 +405,12 @@ namespace InGameTerminal
 								continue;
 							}
 						}
-					endEDBeginningToCursorCheck:
 
 						bool movedCursor = false;
 
-						//Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(TerminalDefinition)}' to '{cell.GetChar(TerminalDefinition)}'");
+						// Debug.Log($"Cell changed at {x},{y} from '{previousCell.GetChar(TerminalDefinition)}' to '{cell.GetChar(TerminalDefinition)}'");
 						if (expectedTerminalCursorPosition.x != x || expectedTerminalCursorPosition.y != y)
 						{
-							bool needMoveTo = true;
 							if (expectedTerminalCursorPosition.x >= Width && x == 0 && expectedTerminalCursorPosition.y == y - 1)
 							{
 								terminalCommands.Add(new TerminalCommand()
@@ -410,7 +421,6 @@ namespace InGameTerminal
 								{
 									CommandType = TerminalCommandType.LineFeed
 								});
-								needMoveTo = false;
 							}
 							else if (expectedTerminalCursorPosition.x == x && expectedTerminalCursorPosition.y == y - 1)
 							{
@@ -418,7 +428,6 @@ namespace InGameTerminal
 								{
 									CommandType = TerminalCommandType.LineFeed
 								});
-								needMoveTo = false;
 							}
 							else
 							{
@@ -430,13 +439,13 @@ namespace InGameTerminal
 								});
 							}
 
-							if (y == 1 && x == 1)
-							{
-								Debug.Log("Moved cursor to (1,1)");
-								Debug.Log($"Expected cursor was at ({expectedTerminalCursorPosition.x},{expectedTerminalCursorPosition.y})");
-								Debug.Log($"Actual cell is '{cell.GetChar(TerminalDefinition)}'");
+							//if (y == 1 && x == 1)
+							//{
+							//	Debug.Log("Moved cursor to (1,1)");
+							//	Debug.Log($"Expected cursor was at ({expectedTerminalCursorPosition.x},{expectedTerminalCursorPosition.y})");
+							//	Debug.Log($"Actual cell is '{cell.GetChar(TerminalDefinition)}'");
 
-							}
+							//}
 
 							//terminalCommands.Add(new TerminalCommand()
 							//{
@@ -553,20 +562,34 @@ namespace InGameTerminal
 				terminalCommands.Clear();
 			}
 		}
-		private void BuildBufferFromChildren(RectTransform rectTransform, TerminalBufferValue currentState, ref TerminalState terminalState)
+		private void BuildBufferFromChildren(Transform transform, TerminalBufferValue currentState, ref TerminalState terminalState)
 		{
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 
-			int childCount = rectTransform.childCount;
+			int childCount = transform.childCount;
 			for (int i_outer = 0; i_outer < childCount; i_outer++)
 			{
-				var child = rectTransform.GetChild(i_outer);
+				var child = transform.GetChild(i_outer);
 				if (!child.gameObject.activeInHierarchy)
 				{
 					continue;
 				}
 				var element = child.GetComponent<Element>();
+				if (!element)
+				{
+					BuildBufferFromChildren(
+						child,
+						currentState,
+						ref terminalState
+					);
+					continue;
+				}
+				if (TerminalDefinition == null)
+				{
+					Debug.LogError("TerminalDefinition is null on Terminal!", this);
+					return;
+				}
 				Vector2Int position = element.GetTerminalPosition(TerminalDefinition);
 				RectInt bounds = element.GetTerminalBounds(TerminalDefinition);
 
@@ -662,6 +685,30 @@ namespace InGameTerminal
 					BuildBufferFromChildren(hline.RectTransform, currentState, ref terminalState);
 					continue;
 				}
+				if (element is Elements.VerticalLine vline)
+				{
+					for (int y = bounds.yMin; y < bounds.yMax; y++)
+					{
+						for (int x = bounds.xMin; x < bounds.xMax; x++)
+						{
+							if (x < 0 || x >= Width || y < 0 || y >= Height)
+								goto endVerticalLine;
+
+							ref TerminalBufferValue cell = ref terminalBuffer[
+								x,
+								y
+							];
+							cell.AtlasX = TerminalDefinition.VerticalLineX;
+							cell.AtlasY = TerminalDefinition.VerticalLineY;
+							cell.CharacterBank = TerminalCharacterBank.G1;
+							cell.HasTerminalCommand = true;
+							cell.TerminalCommandType = TerminalCommandType.Box_Vertical;
+						}
+					}
+				endVerticalLine:
+					BuildBufferFromChildren(vline.RectTransform, currentState, ref terminalState);
+					continue;
+				}
 				if (element is ConnectedLinesGroup connectedLinesGroup)
 				{
 					currentState.ConnectorID = nextConnectorID++;
@@ -703,30 +750,11 @@ namespace InGameTerminal
 				}
 			}
 		}
-		public void BuildBuffer(ref TerminalState terminalState, bool firstUpdate, bool redraw = false)
+		public void BuildBuffer(ref TerminalState terminalState)
 		{
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 
-			if (firstUpdate)
-			{
-				for (int y = 0; y < Height; y++)
-				{
-					for (int x = 0; x < Width; x++)
-					{
-						ref TerminalBufferValue previousChar = ref previousTerminalBuffer[x, y];
-						ref TerminalBufferValue currentChar = ref terminalBuffer[x, y];
-						previousChar = default;
-						previousChar.SetChar(TerminalDefinition, ' ');
-						currentChar = default;
-						currentChar.SetChar(TerminalDefinition, ' ');
-					}
-				}
-				if (!redraw)
-				{
-					return;
-				}
-			}
 			SwapAndClearBuffer(ref terminalState);
 
 			// Reset connector ID counter so IDs are deterministic between frames
@@ -1006,19 +1034,25 @@ namespace InGameTerminal
 		{
 			if (TerminalDefinition == null)
 			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
 				return;
 			}
-			_rectTransform.offsetMin = Vector3.zero;
-			_rectTransform.offsetMax = new Vector3(
+			//_rectTransform.offsetMin = Vector3.zero;
+			_rectTransform.offsetMax = _rectTransform.offsetMin + new Vector2(
 				Width * TerminalDefinition.GlyphWidth,
-				Height * TerminalDefinition.GlyphHeight,
-				0
+				Height * TerminalDefinition.GlyphHeight
 			);
-			_rectTransform.localScale = new Vector3(
-				2,
-				TerminalDefinition.PixelHeight*2,
-				0
+			//_rectTransform.localScale = new Vector3(
+			//	2,
+			//	TerminalDefinition.PixelHeight * 2,
+			//	0
+			//);
+			transform.localScale = new Vector3(
+				1,
+				TerminalDefinition.PixelHeight,
+				1
 			);
+			_rectTransform.pivot = new Vector2(0, 1);
 
 			elementPool.Clear();
 			GetComponentsInChildren<Element>(elementPool);
@@ -1045,11 +1079,24 @@ namespace InGameTerminal
 			Redraw = true;
 			if (testSerialDriver == null)
 			{
-				testSerialDriver = new SerialDriver.SerialDriver();
-				testSerialDriver.Open("COM3", 19200);
-				testTerminalBridge = new TerminalBridge.VT320(
-					testSerialDriver
-				);
+#pragma warning disable IDE0059 // Unnecessary assignment of a value
+#pragma warning disable CS0168 // Variable is declared but never used
+				try
+				{
+					testSerialDriver = new SerialDriver.SerialDriver();
+					testSerialDriver.Open("COM3", 19200);
+					testTerminalBridge = new TerminalBridge.VT320(
+						testSerialDriver
+					);
+				}
+				catch (Exception ex)
+				{
+					// Debug.LogError("Could not initialize test serial: " + ex);
+					testSerialDriver = null;
+					testTerminalBridge = null;
+				}
+#pragma warning restore CS0168 // Variable is declared but never used
+#pragma warning restore IDE0059 // Unnecessary assignment of a value
 			}
 		}
 		private void OnDisable()

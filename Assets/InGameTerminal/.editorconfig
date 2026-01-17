@@ -4,6 +4,7 @@ end_of_line = crlf
 indent_size = 4
 indent_style = tab
 trim_trailing_whitespace = true
+insert_final_newline = true
 
 [*.cs]
 # The private field is never used

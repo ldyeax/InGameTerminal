@@ -62,7 +62,7 @@ namespace InGameTerminal.TerminalBridge
 					lastProcessedcommands = 0;
 				}
 				readyForUpdate = false;
-				terminal.BuildBuffer(ref terminalState, this.redraw);
+				terminal.BuildBuffer(ref terminalState);
 				terminal.BuildTerminalCommands(ref terminalState, terminalCommands, this.redraw);
 
 				if (terminalCommands.Count != lastQueue)

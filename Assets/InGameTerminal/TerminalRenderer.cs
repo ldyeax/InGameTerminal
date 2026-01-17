@@ -11,40 +11,30 @@
  * Vertical line at 24,7
  **/
 
-using InGameTerminal;
-using InGameTerminal.Elements;
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Net;
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.UIElements;
 
 namespace InGameTerminal
 {
 	[ExecuteAlways]
-	[RequireComponent(typeof(CanvasRenderer))]
 	public class TerminalRenderer : MonoBehaviour
 	{
+		private RenderTexture uiRenderTexture = null;
+		[SerializeField]
+		private Camera uiCamera = null;
+
 		private ITerminalDefinition _terminalDefinition;
 
 		private TerminalState terminalState;
-		private bool firstUpdate = true;
 		private List<TerminalCommand> terminalCommands = new List<TerminalCommand>();
 
 		[SerializeField]
 		private Terminal terminal;
 		[SerializeField]
 		private int simulatedBaudRate = 115200;
-
-		[SerializeField]
-		private float uvInsetPixels = 0.25f;
 
 		[SerializeField]
 		[Tooltip("Snap vertex positions to pixel boundaries for crisp 1-pixel lines")]
@@ -128,37 +118,6 @@ namespace InGameTerminal
 			_canvasRenderer.SetMaterial(_terminalDefinition.Atlas, null);
 		}
 
-		private void GetUvInset(out float insetU, out float insetV)
-		{
-			insetU = 0.0f;
-			insetV = 0.0f;
-
-			if (uvInsetPixels <= 0.0f)
-			{
-				return;
-			}
-
-			var material = _terminalDefinition?.Atlas;
-			if (material == null)
-			{
-				return;
-			}
-
-			var texture = material.mainTexture;
-			if (texture == null)
-			{
-				return;
-			}
-
-			if (texture.width <= 0 || texture.height <= 0)
-			{
-				return;
-			}
-
-			insetU = uvInsetPixels / texture.width;
-			insetV = uvInsetPixels / texture.height;
-		}
-
 		List<Vector3> vertices = new List<Vector3>();
 		List<Vector2> uvs = new List<Vector2>();
 		List<int> triangles = new List<int>();
@@ -175,13 +134,11 @@ namespace InGameTerminal
 			float pixelX = terminalX * _terminalDefinition.GlyphWidth;
 			float pixelY = terminalY * _terminalDefinition.GlyphHeight;
 
-			GetUvInset(out var insetU, out var insetV);
-
-			// Calculate UVs (inset to avoid sampling tile borders)
-			float uvLeft = (float)atlasX / _terminalDefinition.AtlasCols + insetU;
-			float uvRight = (float)(atlasX + 1) / _terminalDefinition.AtlasCols - insetU;
-			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows - insetV;
-			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows + insetV;
+			// Calculate UVs
+			float uvLeft = (float)atlasX / _terminalDefinition.AtlasCols;
+			float uvRight = (float)(atlasX + 1) / _terminalDefinition.AtlasCols;
+			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows;
+			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows;
 
 			// Calculate vertex positions with pixel snapping for crisp lines
 			// X snapping is straightforward since X scale is 1
@@ -237,13 +194,11 @@ namespace InGameTerminal
 			int cellIndex = terminalY * terminal.Width + terminalX;
 			int vertexIndex = cellIndex * 4;
 
-			GetUvInset(out var insetU, out var insetV);
-
-			// Calculate UVs (inset to avoid sampling tile borders)
-			float uvLeft = (float)atlasX / _terminalDefinition.AtlasCols + insetU;
-			float uvRight = (float)(atlasX + 1) / _terminalDefinition.AtlasCols - insetU;
-			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows - insetV;
-			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows + insetV;
+			// Calculate UVs
+			float uvLeft = (float)atlasX / _terminalDefinition.AtlasCols;
+			float uvRight = (float)(atlasX + 1) / _terminalDefinition.AtlasCols;
+			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows;
+			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows;
 
 			// Update UVs for the quad
 			uvs[vertexIndex + 0] = new Vector2(uvLeft, uvTop);
@@ -259,8 +214,8 @@ namespace InGameTerminal
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 
-			ref TerminalBufferValue testCell = ref terminalBuffer[0, 0];
-			testCell.SetChar(_terminalDefinition, '&');
+			//ref TerminalBufferValue testCell = ref terminalBuffer[79, 0];
+			//testCell.SetChar(_terminalDefinition, '&');
 
 			for (int y = 0; y < terminal.Height; y++)
 			{
@@ -272,6 +227,7 @@ namespace InGameTerminal
 					//if (cell != previousCell || forceRedraw)
 					{
 						DrawCharToMesh(cell.AtlasX, cell.AtlasY, x, y);
+						// Debug.Log("DrawCharToMesh " + cell.GetChar(_terminalDefinition) + " at " + x + "," + y);
 					}
 				}
 			}
@@ -281,9 +237,10 @@ namespace InGameTerminal
 			// Update the mesh UVs
 			_mesh.SetUVs(0, uvs);
 			_mesh.UploadMeshData(false);
-			
+
 			// Force the canvas renderer to update
 			_canvasRenderer.SetMesh(_mesh);
+			
 		}
 		private struct DrawTerminalCommandsState
 		{
@@ -478,41 +435,58 @@ namespace InGameTerminal
 		public bool DebugUpdate = false;
 		public bool DebugReadyToUpdate = false;
 
-		private bool readyToUpdate = true;
-		private bool readyToDraw = false;
 		public int FrameRate = 60;
+		private void UpdateBuffer_Player(bool redraw)
+		{
+			ref var terminalState = ref this.terminalState;
+			ref var terminalBuffer = ref terminalState.terminalBuffer;
+			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
+			if (terminalBuffer == null)
+			{
+				redraw = true;
+				terminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
+				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
+				InitMesh();
+			}
+			terminal.BuildBuffer(ref terminalState);
+			terminal.BuildTerminalCommands(ref terminalState, terminalCommands, redraw);
+		}
 		private IEnumerator UpdateCoroutine()
 		{
+			bool first = false;
 			while (true)
 			{
-				// Wait until terminal definition is initialized
-				if (terminalCommands == null || _terminalDefinition == null)
+				if (!CheckSetupForUpdate())
 				{
 					yield return null;
 					continue;
 				}
+				UpdateBuffer_Player(first);
+
 				int commandsPerSecond = (int)(simulatedBaudRate / 8.0f);
 				int commandsPerFrame = commandsPerSecond / FrameRate;
-				if (commandsPerFrame < 1) commandsPerFrame = 1;
-				// Wait time is the time to transmit one batch of commands
-				var waitTime = new WaitForSeconds((float)commandsPerFrame / commandsPerSecond);
-				if (readyToDraw)
+				if (commandsPerFrame < 1)
 				{
-					int start = 0;
-					int end = start + commandsPerFrame;
-					DrawTerminalCommandsToMesh(terminalCommands, start, end);
-					UpdateUVs();
-					while (end < terminalCommands.Count)
-					{
-						start = end;
-						end = start + commandsPerFrame;
-						yield return waitTime;
-						DrawTerminalCommandsToMesh(terminalCommands, start, end);
-						UpdateUVs();
-					}
-					readyToDraw = false;
-					readyToUpdate = true;
+					commandsPerFrame = 1;
 				}
+				int start = 0;
+				int end = start + commandsPerFrame;
+				DrawTerminalCommandsToMesh(terminalCommands, start, end);
+				UpdateUVs();
+				while (end < terminalCommands.Count)
+				{
+					start = end;
+					end = start + commandsPerFrame;
+					yield return new WaitForSeconds((float)commandsPerFrame / commandsPerSecond);
+					DrawTerminalCommandsToMesh(terminalCommands, start, end);
+					// Debug.Log($"DrawTerminalCommandsToMesh commands {start} to {end}");
+					UpdateUVs();
+				}
+
+				//else
+				//{
+				//	Debug.Log("Not ReadyToDraw TerminalRenderer UpdateCoroutine");
+				//}
 				yield return null; // Always yield to prevent infinite loop
 			}
 		}
@@ -545,29 +519,16 @@ namespace InGameTerminal
 				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a TerminalDefinition.");
 				return false;
 			}
+			if (_canvasRenderer == null)
+			{
+				Debug.Log($"TerminalRenderer on GameObject '{gameObject.name}' is missing a CanvasRenderer.");
+				return false;
+			}
+
+			this.transform.localScale = Vector3.one;
+			GetComponent<RectTransform>().sizeDelta = new Vector2(terminal.CanvasWidth, terminal.CanvasHeight);
+
 			return true;
-		}
-		private void UpdatePlaying()
-		{
-			readyToUpdate = false;
-			ref var terminalState = ref this.terminalState;
-			ref var terminalBuffer = ref terminalState.terminalBuffer;
-			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
-			if (terminalBuffer == null)
-			{
-				firstUpdate = true;
-				terminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
-				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
-				InitMesh();
-			}
-			if (!readyToUpdate)
-			{
-				return;
-			}
-			terminal.BuildBuffer(ref terminalState, firstUpdate);
-			terminal.BuildTerminalCommands(ref terminalState, terminalCommands, firstUpdate);
-			firstUpdate = false;
-			readyToDraw = true;
 		}
 		private void UpdateInEditor()
 		{
@@ -580,34 +541,56 @@ namespace InGameTerminal
 				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
 				InitMesh();
 			}
-			terminal.BuildBuffer(ref terminalState, true);
+			terminal.BuildBuffer(ref terminalState);
 			DrawBuffer();
+			UpdateUVs();
 		}
 		private void Update()
 		{
-			if (!CheckSetupForUpdate())
-			{
-				return;
-			}
-			if (Application.isPlaying)
-			{
-				UpdatePlaying();
-			}
-			else
+			if (CheckSetupForUpdate() && !Application.isPlaying)
 			{
 				UpdateInEditor();
 			}
 		}
-
+		public Camera GetCamera()
+		{
+			return uiCamera;
+		}
 		private void OnEnable()
 		{
-			firstUpdate = true;
-			StartCoroutine(UpdateCoroutine());
+			if (Application.isPlaying)
+			{
+				StartCoroutine(UpdateCoroutine());
+			}
+
+			uiRenderTexture = new RenderTexture(terminal.CanvasWidth, terminal.CanvasHeight, 0, RenderTextureFormat.ARGB32)
+			{
+				name = "UI_Capture_RT",
+				enableRandomWrite = false,   // input texture doesn't need RW
+				filterMode = FilterMode.Bilinear,
+				wrapMode = TextureWrapMode.Clamp
+			};
+			uiRenderTexture.Create();
+
+			//uiCamera = Util.GetOrCreateComponent<Camera>(gameObject);
+			if (uiCamera)
+			{
+				uiCamera.targetTexture = uiRenderTexture;
+				uiCamera.orthographic = true;
+				uiCamera.orthographicSize = terminal.CanvasHeight / 2.0f;
+			}
+
+
+			foreach (var terminalShader in GetComponents<Shaders.ITerminalShader>())
+			{
+				terminalShader.Init(uiRenderTexture);
+			}
 		}
 		private void OnDisable()
 		{
 			
 		}
+
 
 	}
 }
