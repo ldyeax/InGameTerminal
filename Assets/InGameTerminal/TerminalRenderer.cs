@@ -25,6 +25,8 @@ namespace InGameTerminal
 		private RenderTexture uiRenderTexture = null;
 		[SerializeField]
 		private Camera uiCamera = null;
+		[SerializeField]
+		private Shader[] effects;
 
 		private ITerminalDefinition _terminalDefinition;
 

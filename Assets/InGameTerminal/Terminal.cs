@@ -1108,5 +1108,128 @@ namespace InGameTerminal
 				testTerminalBridge = null;
 			}
 		}
+
+		#region visual scripting/etc helpers
+		public void MoveElementToVector2Int(Element element, Vector2Int newTerminalPosition)
+		{
+			if (TerminalDefinition == null)
+			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
+				return;
+			}
+			element.SetTerminalPosition(
+				TerminalDefinition,
+				newTerminalPosition
+			);
+		}
+		public void MoveElementToVector2(Element element, Vector2 newTerminalPosition)
+		{
+			if (TerminalDefinition == null)
+			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
+				return;
+			}
+			element.SetTerminalPosition(
+				TerminalDefinition,
+				new Vector2Int(
+					Mathf.RoundToInt(newTerminalPosition.x),
+					Mathf.RoundToInt(newTerminalPosition.y)
+				)
+			);
+		}
+		public void MoveElementByVector2Int(Element element, Vector2Int delta)
+		{
+			if (TerminalDefinition == null)
+			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
+				return;
+			}
+			Vector2Int currentPos = element.GetTerminalPosition(TerminalDefinition);
+			element.SetTerminalPosition(
+				TerminalDefinition,
+				currentPos + delta
+			);
+		}
+		public void MoveElementByVector2(Element element, Vector2 delta)
+		{
+			if (TerminalDefinition == null)
+			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
+				return;
+			}
+			Vector2Int currentPos = element.GetTerminalPosition(TerminalDefinition);
+			element.SetTerminalPosition(
+				TerminalDefinition,
+				currentPos + new Vector2Int(
+					Mathf.RoundToInt(delta.x),
+					Mathf.RoundToInt(delta.y)
+				)
+			);
+		}
+		public void MoveElementToX(Element element, int deltaX)
+		{
+			if (TerminalDefinition == null)
+			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
+				return;
+			}
+			Vector2Int currentPos = element.GetTerminalPosition(TerminalDefinition);
+			element.SetTerminalPosition(
+				TerminalDefinition,
+				new Vector2Int(
+					deltaX,
+					currentPos.y
+				)
+			);
+		}
+		public void MoveElementToY(Element element, int deltaY)
+		{
+			if (TerminalDefinition == null)
+			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
+				return;
+			}
+			Vector2Int currentPos = element.GetTerminalPosition(TerminalDefinition);
+			element.SetTerminalPosition(
+				TerminalDefinition,
+				new Vector2Int(
+					currentPos.x,
+					deltaY
+				)
+			);
+		}
+		public void MoveElementByX(Element element, int deltaX)
+		{
+			if (TerminalDefinition == null)
+			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
+				return;
+			}
+			Vector2Int currentPos = element.GetTerminalPosition(TerminalDefinition);
+			element.SetTerminalPosition(
+				TerminalDefinition,
+				new Vector2Int(
+					currentPos.x + deltaX,
+					currentPos.y
+				)
+			);
+		}
+		public void MoveElementByY(Element element, int deltaY)
+		{
+			if (TerminalDefinition == null)
+			{
+				Debug.LogError("TerminalDefinition is null on Terminal!", this);
+				return;
+			}
+			Vector2Int currentPos = element.GetTerminalPosition(TerminalDefinition);
+			element.SetTerminalPosition(
+				TerminalDefinition,
+				new Vector2Int(
+					currentPos.x,
+					currentPos.y + deltaY
+				)
+			);
+		}
+		#endregion visual scripting/etc helpers
 	}
 }

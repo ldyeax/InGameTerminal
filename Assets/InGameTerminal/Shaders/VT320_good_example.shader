@@ -1,4 +1,4 @@
-Shader "InGameTerminal/VT320"
+Shader "InGameTerminal/VT320 Fancy 1"
 {
     Properties
 {

@@ -112,5 +112,11 @@ namespace InGameTerminal
 			RectTransform.anchorMax = new Vector2(0, 1);
 			RectTransform.pivot = new Vector2(0, 1);
 		}
+
+		public void SetTerminalPosition(UnityTerminalDefinitionBase terminalDefinition, Vector2Int vector2Int)
+		{
+			//RectTransform.offsetMin = new Vector2(vector2Int.x * terminalDefinition.GlyphWidth, -vector2Int.y * terminalDefinition.GlyphHeight - terminalDefinition.GlyphHeight);
+			RectTransform.anchoredPosition = new Vector2(vector2Int.x * terminalDefinition.GlyphWidth, -vector2Int.y * terminalDefinition.GlyphHeight);
+		}
 	}
 }

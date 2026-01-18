@@ -1,0 +1,29 @@
+#pragma kernel CSMain
+
+RWTexture2D<float4> _UIInput;
+RWTexture2D<float4> _Buffer;
+float _decay;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 dtid : SV_DispatchThreadID) 
+{
+	float4 inputColor = _UIInput[dtid.xy];
+	float4 bufferColor = _Buffer[dtid.xy];
+
+	if (inputColor.r > bufferColor.r || inputColor.g > bufferColor.g || inputColor.b > bufferColor.b)
+	{
+		bufferColor.r = inputColor.r > 0 ? inputColor.r : 0.0;
+		bufferColor.g = inputColor.g > 0 ? inputColor.g : 0.0;
+		bufferColor.b = inputColor.b > 0 ? inputColor.b : 0.0;
+	}
+	else
+	{
+		bufferColor -= _decay * float4(1,1,1,1);
+		if (bufferColor.r < inputColor.r)
+		{
+			bufferColor = inputColor;
+		}
+	}
+	bufferColor.a = 1.0;
+    _Buffer[dtid.xy] = bufferColor;
+}

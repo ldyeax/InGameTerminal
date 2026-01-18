@@ -1,7 +1,7 @@
 using InGameTerminal;
 using UnityEngine;
 
-namespace InGameTermina.Shaders
+namespace InGameTerminal.Shaders
 {
 	[ExecuteAlways]
 	public class PostProcessor : MonoBehaviour
@@ -14,6 +14,8 @@ namespace InGameTermina.Shaders
 		private Transform preview;
 		[SerializeField]
 		private RenderTexture renderTexture;
+		[SerializeField]
+		private Shader[] effects;
 		private void OnEnable()
 		{
 			camera = Util.GetOrCreateComponent<Camera>(gameObject);
@@ -37,6 +39,19 @@ namespace InGameTermina.Shaders
 			{
 				Debug.LogWarning($"RenderTexture should be {desiredWidth}x{desiredHeight}", this);
 			}
+
+			//RenderTexture currentSource = renderTexture;
+			//foreach (Shader effect in effects)
+			//{
+			//	if (effect == null) continue;
+			//	RenderTexture temp = RenderTexture.GetTemporary(currentSource.width, currentSource.height, 0, currentSource.format);
+			//	Graphics.Blit(currentSource, temp, new Material(effect));
+			//	if (currentSource != renderTexture)
+			//	{
+			//		RenderTexture.ReleaseTemporary(currentSource);
+			//	}
+			//	currentSource = temp;
+			//}
 		}
 	}
 }

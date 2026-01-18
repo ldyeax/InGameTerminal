@@ -77,7 +77,8 @@ Shader "InGameTerminal/VT320 Basic"
                 float2 uv = i.uv;
                 fixed4 col;
                 col = tex2D(_MainTex, uv);
-				return col*i.color;
+				float4 color = i.color*0.9;
+				return col*color;
             }
             ENDCG
         }
