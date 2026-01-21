@@ -1,0 +1,194 @@
+#pragma kernel RedrawPrescaledInput
+#pragma kernel RedrawPrescaledInput_HiRes
+
+#define WRITE_BLUR(color, position) \
+{float4 WRITE_existing = _UIOutput[position]; \
+if (WRITE_existing.a == 0.0) \
+{ \
+	_UIOutput[position] = color; \
+} \
+else \
+{ \
+	_UIOutput[position] = max(WRITE_existing, color); \
+}}
+
+RWTexture2D<float4> _UIInput;
+RWTexture2D<float4> _UIOutput;
+RWTexture2D<float4> _HiResBuffer;
+float _StartYOffset = 0.0f;
+float _EndYOffset = 0.0f;
+float _SampleScaleY = 1.0f;
+float _SampleOffsetY = 0.0f;
+bool _HiRes = false;
+
+#define BLACK float4(0, 0, 0, 1)
+
+#define FILLED(color) (color).r + (color).g + (color).b > 0.0
+
+[numthreads(12, 1, 1)]
+void RedrawPrescaledInput(uint3 dtid : SV_DispatchThreadID, uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex)
+{
+	uint2 start = dtid.xy;
+
+	uint2 scaledInputStart = start;
+	scaledInputStart.y = (uint) ((start.y + _SampleOffsetY) * _SampleScaleY);
+	//// No point in negative comparison, it would have overflowed
+	if (scaledInputStart.y >= 792)
+	{
+		_UIOutput[start] = BLACK;
+		return;
+	}
+	float4 inputColor = _UIInput[scaledInputStart];
+	float4 bufferColor = _UIOutput[start];
+
+	int startPixelY = (int) (dtid.y * 12 + dtid.x);
+	int startOutputY = (int) (startPixelY * 2.75);
+
+	int startY = (int) (dtid.y * 33 + dtid.x * 2.75);
+	
+	int startInputY = (int) ((startOutputY + _SampleOffsetY) * _SampleScaleY);
+	startInputY = max(startInputY, 0);
+	startInputY = min(startInputY, 791);
+
+	int hiRes_OutputY = startPixelY * 4;
+	bool previousFilled = false;
+	float4 previousInputColor = BLACK;
+	
+	for (int x = 0; x < 1200; x++)
+	{
+		if (_HiRes)
+		{
+			int topY = hiRes_OutputY;
+			int middleY = hiRes_OutputY + 1;
+			int bottomY = hiRes_OutputY + 2;
+			// int scanlineY = hiRes_OutputY + 3; // blank
+
+			bool filled = FILLED(inputColor);
+			if (previousFilled && filled)
+			{
+				_HiResBuffer[uint2(x, middleY)] = inputColor;
+				_HiResBuffer[uint2(x, topY)] = inputColor;
+				_HiResBuffer[uint2(x, bottomY)] = inputColor;
+			}
+			else if (previousFilled && !filled)
+			{
+				_HiResBuffer[uint2(x, middleY)] = previousInputColor;
+				_HiResBuffer[uint2(x, topY)] = BLACK;
+				_HiResBuffer[uint2(x, bottomY)] = BLACK;
+			}
+			else
+			{
+				_HiResBuffer[uint2(x, middleY)] = inputColor;
+				_HiResBuffer[uint2(x, topY)] = BLACK;
+				_HiResBuffer[uint2(x, bottomY)] = BLACK;
+			}
+			previousFilled = filled;
+		}
+
+		float4 inputColor = _UIInput[uint2(x, startInputY)];
+		
+		int yOffset;
+		if (startY > 0)
+		{
+			//_Buffer[uint2(x, startY - 1)] = BLACK;
+		}
+		// get max of above and below
+		//for (yOffset = _StartYOffset; yOffset < _EndYOffset; yOffset++)
+		//{
+		//	if (startY + yOffset >= 0 && startY + yOffset < 792)
+		//	{
+		//		int scaledInputY = (int) ((startOutputY + yOffset + _SampleOffsetY) * _SampleScaleY);
+		//		scaledInputY = max(scaledInputY, 0);
+		//		scaledInputY = min(scaledInputY, 791);
+		//		float4 neighborColor = _UIInput[uint2(x, scaledInputY)];
+		//		if (neighborColor.r > inputColor.r) inputColor.r = neighborColor.r;
+		//		if (neighborColor.g > inputColor.g) inputColor.g = neighborColor.g;
+		//		if (neighborColor.b > inputColor.b) inputColor.b = neighborColor.b;
+		//	}
+		//}
+
+		previousInputColor = inputColor;
+
+		inputColor.a = 1.0;
+
+		float4 originalInputColor = inputColor;
+		
+		inputColor *= 0.5;
+		//inputColor.a = 0.0;
+		//inputColor.a = 1.0;
+
+		for (yOffset = _StartYOffset; yOffset < _EndYOffset; yOffset++)
+		{
+			if (startY + yOffset >= 0 && startY + yOffset < 792)
+			{
+				//float4 tmp = inputColor;
+				//float4 neighborColor = _UIInput[uint2(x, startOutputY + yOffset)];
+				//if (neighborColor.r > tmp.r)
+				//	tmp.r = neighborColor.r;
+				//if (neighborColor.g > tmp.g)
+				//	tmp.g = neighborColor.g;
+				//if (neighborColor.b > tmp.b)
+				//	tmp.b = neighborColor.b;
+				//_Buffer[uint2(x, startY + yOffset)] = tmp;
+				WRITE_BLUR(inputColor, uint2(x, startY + yOffset));
+			}
+		}
+
+		_UIOutput[uint2(x, startY)] = originalInputColor;
+		
+		
+	}
+	return;
+}
+
+
+[numthreads(12, 1, 1)]
+void RedrawPrescaledInput_HiRes(uint3 dtid : SV_DispatchThreadID, uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex)
+{
+	//int startPixelY = (int) (groupID.y * 12 + dtid.x);
+	//int startOutputY = (int) (startPixelY * 2.75 * 4.0);
+
+	int startOutputY = (int) ((groupID.y * 12 + dtid.x) * 4);
+	
+	bool previousFilled = false;
+	float4 inputColor = BLACK;
+	float4 previousInputColor = BLACK;
+	
+	int topY = startOutputY;
+	int middleY = startOutputY + 1;
+	int bottomY = startOutputY + 2;
+	// + 3 is scanline
+	
+	for (int x = 0; x < 1200; x++)
+	{
+		// In hires, the input is the same as the output Y
+		inputColor = _UIInput[uint2(x, middleY)];
+		//inputColor.r = inputColor.b = 0.0;
+		bool filled = FILLED(inputColor);
+		if (previousFilled && filled)
+		{
+			_UIOutput[uint2(x, middleY)] = inputColor;
+			_UIOutput[uint2(x, topY)] = inputColor;
+			_UIOutput[uint2(x, bottomY)] = inputColor;
+		}
+		else if (previousFilled && !filled)
+		{
+			_UIOutput[uint2(x, middleY)] = previousInputColor;
+			_UIOutput[uint2(x, topY)] = BLACK;
+			_UIOutput[uint2(x, bottomY)] = BLACK;
+		}
+		else
+		{
+			_UIOutput[uint2(x, middleY)] = inputColor;
+			_UIOutput[uint2(x, topY)] = BLACK;
+			_UIOutput[uint2(x, bottomY)] = BLACK;
+		}
+			
+		previousFilled = filled;
+		previousInputColor = inputColor;
+
+		inputColor.a = 1.0;
+		
+	}
+	return;
+}

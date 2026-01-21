@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if CRT_COMPUTE
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,51 +17,56 @@ namespace InGameTerminal.Shaders
 		[SerializeField]
 		[Range(0.0f, 1.0f)]
 		private float decay = 1.0f;
-		private int kernel;
-		private int kernel2;
+		[SerializeField]
+		[Range(-3.0f, 0.0f)]
+		private float startYOffset = 0.0f;
+		[SerializeField]
+		[Range(0.0f, 3.0f)]
+		private float endYOffset = 0.0f;
+		private int kernel_RedrawPrescaledInput;
+		private int kernel_RedrawPrescaledInput_HiRes;
+		private int kernel_Phosphor;
 		private RenderTexture buffer;
 		private RenderTexture buffer2;
 		private RenderTexture input;
+		private RenderTexture hiResBuffer;
 
+		public bool RedrawPrescaledInput;
+		public bool Phosphor;
 
-/*
-    Properties
-    {
-        _MainTex ("Source", 2D) = "white" {}
-        _BaseRadius ("Base Radius (pixels)", Range(0, 10)) = 0
-        _FwidthFactor ("Fwidth -> Radius", Range(0, 200)) = 40
-        _MaxRadius ("Max Radius (pixels)", Range(0, 32)) = 12
-        _Quality ("Quality (0=fast, 1=better)", Range(0, 1)) = 1
-    }
-*/
-		private Shader adaptiveBlur;
-		private Material adaptiveBlurMaterial;
-		private RenderTexture adaptiveBlurRenderTexture;
-		[Range(0.0f, 10.0f)]
-		public float adaptiveBlur_baseRadius = 0.0f;
-		[Range(0.0f, 200.0f)]
-		public float adaptiveBlur_fwidthFactor = 40.0f;
-		[Range(0.0f, 32.0f)]
-		public float adaptiveBlur_maxRadius = 12.0f;
-		[Range(0.0f, 1.0f)]
-		public float adaptiveBlur_quality = 1.0f;
-		// _DistanceScale
-		[Range(0.0f, 2000.0f)]
-		public float adaptiveBlur_distanceScale = 100.0f;
+		[Range(0.0f, 4.0f)]
+		public float SampleScaleY = 1.0f;
+		[Range(-33.0f, 33.0f)]
+		public float SampleOffsetY = 0.0f;
+
+		[SerializeField]
+		private Camera mainCamera;
+
+		public bool HiRes;
 
 		private void OnEnable()
 		{
-			adaptiveBlur = Shader.Find("InGameTerminal/FWidthAdaptiveBlur");
-			if (adaptiveBlur != null)
+			if (!mainCamera)
 			{
-				adaptiveBlurMaterial = new Material(adaptiveBlur);
-			}
-			else
-			{
-				Debug.LogError("Adaptive Blur Shader not found!", this);
+				Debug.LogError("Main Camera not set", this);
+				enabled = false;
+				return;
 			}
 			buffer = null;
+			buffer2 = null;
 			input = null;
+
+			redraw_input = null;
+			redraw_output = null;
+			phosphor_input = null;
+			phosphor_output = null;
+
+			runRedraw = false;
+			runPhosphor = false;
+
+			renderCount = 0;
+			updateCount = 0;
+
 			if (computeShader == null)
 			{
 				Debug.LogError("ComputeShader is not assigned!", this);
@@ -67,34 +74,104 @@ namespace InGameTerminal.Shaders
 				return;
 			}
 
-			kernel = computeShader.FindKernel("CSMain");
-			kernel2 = computeShader.FindKernel("CSMain2");
-			Debug.Log($"Kernel index: {kernel} {kernel2}", this);
+			kernel_RedrawPrescaledInput = computeShader.FindKernel("RedrawPrescaledInput");
+			kernel_RedrawPrescaledInput_HiRes = computeShader.FindKernel("RedrawPrescaledInput_HiRes");
+			kernel_Phosphor = computeShader.FindKernel("Phosphor");
 		}
+		private RenderTexture outputBuffer
+		{
+			get
+			{
+				if (RedrawPrescaledInput)
+				{
+					if (Phosphor)
+					{
+						return buffer2;
+					}
+					return buffer;
+				}
+				if (Phosphor)
+				{
+					return buffer;
+				}
+				return null;
+			}
+		}
+		private void ClearBlack(RenderTexture buffer)
+		{
+			var prev = RenderTexture.active;
+			RenderTexture.active = buffer;
+			GL.Clear(true, true, Color.black); // Color.black is (0,0,0,1)
+			RenderTexture.active = prev;
+		}
+		private void Clear(RenderTexture buffer)
+		{
+			var prev = RenderTexture.active;
+			RenderTexture.active = buffer;
+			GL.Clear(true, true, Color.clear); // Color.clear is (0,0,0,0)
+			RenderTexture.active = prev;
+		}
+
+		private int renderCount = 0;
+		private int updateCount = 0;
+
+		private bool runRedraw = false;
+		private bool runPhosphor = false;
+		private RenderTexture redraw_input = null;
+		private RenderTexture redraw_output = null;
+		private RenderTexture phosphor_input = null;
+		private RenderTexture phosphor_output = null;
+
 		private void Update()
 		{
-			if (input && buffer && buffer2)
+			if (updateCount >= renderCount)
 			{
-				computeShader.SetTexture(kernel, "_UIInput", input);
-				computeShader.SetFloat("_decay", Time.deltaTime*(1.0f/decay));
-				computeShader.SetTexture(kernel, "_Buffer", buffer);
-				computeShader.SetTexture(kernel2, "_Buffer", buffer);
-				computeShader.SetTexture(kernel2, "_Buffer2", buffer2);
-				//this.computeShader.Dispatch(kernel, input.width / 8, input.height / 8, 1);
-				this.computeShader.Dispatch(kernel, 1, 24, 1);
-				this.computeShader.Dispatch(kernel2, input.width / 8, input.height / 8, 1);
+				return;
 			}
-			if (adaptiveBlurMaterial)
+			updateCount++;
+
+			redraw_input = input;
+			redraw_output = buffer;
+			if (HiRes)
 			{
-				adaptiveBlurMaterial.SetFloat("_BaseRadius", adaptiveBlur_baseRadius);
-				adaptiveBlurMaterial.SetFloat("_FwidthFactor", adaptiveBlur_fwidthFactor);
-				adaptiveBlurMaterial.SetFloat("_MaxRadius", adaptiveBlur_maxRadius);
-				adaptiveBlurMaterial.SetFloat("_Quality", adaptiveBlur_quality);
-				adaptiveBlurMaterial.SetFloat("_DistanceScale", adaptiveBlur_distanceScale);
+				redraw_output = hiResBuffer;
 			}
+			phosphor_input = input;
+			phosphor_output = buffer;
+			runRedraw = redraw_input && redraw_output && RedrawPrescaledInput;
+			if (runRedraw)
+			{
+				phosphor_input = buffer;
+				phosphor_output = buffer2;
+				computeShader.SetTexture(kernel_RedrawPrescaledInput, "_UIInput", redraw_input);
+				computeShader.SetTexture(kernel_RedrawPrescaledInput, "_Buffer", redraw_output);
+				computeShader.SetFloat("_StartYOffset", startYOffset);
+				computeShader.SetFloat("_EndYOffset", endYOffset);
+				computeShader.SetFloat("_SampleScaleY", SampleScaleY);
+				computeShader.SetFloat("_SampleOffsetY", SampleOffsetY);
+				this.computeShader.Dispatch(kernel_RedrawPrescaledInput, 1, 24, 1);	
+			}
+			runPhosphor = phosphor_input && phosphor_output && Phosphor;
+			if (runPhosphor)
+			{
+				computeShader.SetFloat("_Decay", Time.deltaTime * (1.0f / decay));
+				computeShader.SetTexture(kernel_Phosphor, "_Buffer", phosphor_input);
+				computeShader.SetTexture(kernel_Phosphor, "_Buffer2", phosphor_output);
+				this.computeShader.Dispatch(kernel_Phosphor, input.width / 8, input.height / 8, 1);
+			}
+
+			if (runRedraw)
+			{
+				//Clear(redraw_output);
+			}
+		}
+		private void LateUpdate()
+		{
+
 		}
 		public void OnRenderImage(RenderTexture inTexture, RenderTexture outTexture)
 		{
+			renderCount++;
 			if (!input)
 			{
 				input = new RenderTexture(inTexture.width, inTexture.height, 0, RenderTextureFormat.ARGB32);
@@ -102,47 +179,38 @@ namespace InGameTerminal.Shaders
 				input.Create();
 			}
 			Graphics.Blit(inTexture, input);
-			if (!buffer)
+			if (!HiRes && !buffer)
 			{
 				buffer = new RenderTexture(inTexture.width, inTexture.height, 0, RenderTextureFormat.ARGB32);
 				buffer.enableRandomWrite = true;
 				buffer.Create();
-
-				var prev = RenderTexture.active;
-				RenderTexture.active = buffer;
-				GL.Clear(true, true, Color.black); // Color.black is (0,0,0,1)
-				RenderTexture.active = prev;
+				ClearBlack(buffer);
+			}
+			if (HiRes && !hiResBuffer)
+			{
+				hiResBuffer = new RenderTexture(inTexture.width, inTexture.height*3, 0, RenderTextureFormat.ARGB32);
+				hiResBuffer.enableRandomWrite = true;
+				hiResBuffer.Create();
+				ClearBlack(hiResBuffer);
 			}
 			if (!buffer2)
 			{
 				buffer2 = new RenderTexture(inTexture.width, inTexture.height, 0, RenderTextureFormat.ARGB32);
 				buffer2.enableRandomWrite = true;
 				buffer2.Create();
-
-				var prev = RenderTexture.active;
-				RenderTexture.active = buffer;
-				GL.Clear(true, true, Color.black); // Color.black is (0,0,0,1)
-				RenderTexture.active = prev;
+				ClearBlack(buffer2);
 			}
-			// run adaptiveBlur on buffer2
-
-			if (adaptiveBlurMaterial)
+			if (outputBuffer)
 			{
-				if (!adaptiveBlurRenderTexture)
-				{
-					adaptiveBlurRenderTexture = new RenderTexture(inTexture.width, inTexture.height, 0, RenderTextureFormat.ARGB32);
-					adaptiveBlurRenderTexture.enableRandomWrite = true;
-					adaptiveBlurRenderTexture.Create();
-				}
-				Graphics.Blit(buffer2, adaptiveBlurRenderTexture, adaptiveBlurMaterial);
-				Graphics.Blit(adaptiveBlurRenderTexture, outTexture);
-				//Debug.Log("Applied adaptive blur", this);
+				Graphics.Blit(outputBuffer, outTexture);
 			}
 			else
 			{
-				Graphics.Blit(buffer2, outTexture);
-				//Debug.Log("Skipped adaptive blur", this);
+				Graphics.Blit(inTexture, outTexture);
 			}
+
 		}
 	}
 }
+
+#endif

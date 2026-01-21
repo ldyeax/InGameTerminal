@@ -2,36 +2,36 @@
 
 Shader "InGameTerminal/PostProcessTest1"
 {
-    Properties
+	Properties
 {
-    _MainTex ("Input", 2D) = "white" {}
-    _Color ("Tint", Color) = (1,1,1,1)
-    [Toggle] _PixelSnap ("Pixel Snap", Float) = 1
-    _PixelRoundness ("Pixel Roundness", Range(0, 2)) = 1
-    _RoundnessAspect ("Roundness Aspect (H/V)", Range(0.1, 10)) = 1
+	_MainTex ("Input", 2D) = "white" {}
+	_Color ("Tint", Color) = (1,1,1,1)
+	[Toggle] _PixelSnap ("Pixel Snap", Float) = 1
+	_PixelRoundness ("Pixel Roundness", Range(0, 2)) = 1
+	_RoundnessAspect ("Roundness Aspect (H/V)", Range(0.1, 10)) = 1
 	_ScanLineGap ("ScanLine Gap", Range(0, 0.5)) = 0.022
 	_YOffset ("Y Offset", Range(-1.0, 1.0)) = 0.71
 	_Thickness ("Thickness", range(1, 5)) = 1.0
 }
-    SubShader
-    {
-        Tags
-        {
-            "Queue" = "Transparent"
-            "IgnoreProjector" = "True"
-            "RenderType" = "Transparent"
-            "PreviewType" = "Plane"
-            "CanUseSpriteAtlas" = "True"
-        }
-        
-        Cull Off
-        Lighting Off
-        ZWrite Off
-        Blend SrcAlpha OneMinusSrcAlpha
-        
-        Pass
-        {
-            HLSLPROGRAM
+	SubShader
+	{
+		Tags
+		{
+			"Queue" = "Transparent"
+			"IgnoreProjector" = "True"
+			"RenderType" = "Transparent"
+			"PreviewType" = "Plane"
+			"CanUseSpriteAtlas" = "True"
+		}
+		
+		Cull Off
+		Lighting Off
+		ZWrite Off
+		Blend SrcAlpha OneMinusSrcAlpha
+		
+		Pass
+		{
+			HLSLPROGRAM
 
 			#define GLYPH_WIDTH 15
 			#define GLYPH_HEIGHT 12
@@ -42,51 +42,53 @@ Shader "InGameTerminal/PostProcessTest1"
 			#define COLS 80
 			#define UV_Y_PER_PIXEL (1.0 / SCREEN_HEIGHT_PIXELS)
 
-            #pragma vertex vert
-            #pragma fragment frag
-            
-            #include "UnityCG.cginc"
-            
+			#pragma vertex vert
+			#pragma fragment frag
+			
+			#include "UnityCG.cginc"
+			
 			float _RoundnessAspect;
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-                float4 color : COLOR;
+			struct appdata
+			{
+				float4 vertex : POSITION;
+				float2 uv : TEXCOORD0;
+				float4 color : COLOR;
 				float2 originalUV : TEXCOORD1;
-            };
-            
-            struct v2f
-            {
-                float4 vertex : SV_POSITION;
-                float2 uv : TEXCOORD0;
-                float4 color : COLOR;
-                float2 screenPos : TEXCOORD1;
-            };
-            
-            sampler2D _MainTex;
-            float4 _MainTex_ST;
-            float4 _MainTex_TexelSize; // x=1/width, y=1/height, z=width, w=height
-            fixed4 _Color;
-            float _PixelSnap;
-            float _PixelRoundness;
+			};
+			
+			struct v2f
+			{
+				float4 vertex : SV_POSITION;
+				float2 uv : TEXCOORD0;
+				float4 color : COLOR;
+				float2 screenPos : TEXCOORD1;
+			};
+			
+			sampler2D _MainTex;
+			float4 _MainTex_ST;
+			float4 _MainTex_TexelSize; // x=1/width, y=1/height, z=width, w=height
+			fixed4 _Color;
+			float _PixelSnap;
+			float _PixelRoundness;
 			float _ScanLineGap;
 			float _YOffset;
 			float _Thickness;
-            
-            v2f vert(appdata v)
-            {
+			
+			v2f vert(appdata v)
+			{
 				v.uv = float2(1.0, 1.0)-v.uv;
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                o.color = v.color * _Color;
-                return o;
-            }
-            
+				v2f o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				o.color = v.color * _Color;
+				return o;
+			}
+			
 			float4 frag(v2f i) : SV_Target
 			{
 				float2 uv = i.uv;
+
+				
 
 				// 24 * 12 = 288 intended scanlines
 				const float scanLines = (float)(ROWS * GLYPH_HEIGHT);
@@ -95,7 +97,7 @@ Shader "InGameTerminal/PostProcessTest1"
 				float phase = uv.y * scanLines;
 
 				// Screen-space anti-aliasing width (bigger when the object is far away)
-				float aa = fwidth(phase);          // ~ how many "phase units" per pixel
+				float aa = fwidth(phase);		  // ~ how many "phase units" per pixel
 				aa = max(aa, 1e-5);
 
 				float scanLineGap = _ScanLineGap;
@@ -120,9 +122,10 @@ Shader "InGameTerminal/PostProcessTest1"
 
 				// Force mip 0 so distance doesn't collapse detail via mip selection
 				float4 col = tex2Dlod(_MainTex, float4(snappedUV, 0, 0));
+				col.a = 1.0;
 
 				// // How many source texels (vertically) contribute to this output pixel?
-				// float uvSpanY    = fwidth(snappedUV.y);              // UV units per pixel
+				// float uvSpanY	= fwidth(snappedUV.y);			  // UV units per pixel
 				// float texelSpanY = uvSpanY * _MainTex_TexelSize.w;   // texels per pixel
 
 				// // Number of texel taps needed to cover that span
@@ -174,10 +177,10 @@ Shader "InGameTerminal/PostProcessTest1"
 				return col;
 			}
 
-            ENDHLSL
-        }
-    }
-    
-    Fallback "UI/Default"
+			ENDHLSL
+		}
+	}
+	
+	Fallback "UI/Default"
 
 }

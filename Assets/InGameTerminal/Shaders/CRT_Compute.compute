@@ -1,5 +1,8 @@
-#pragma kernel CSMain
-#pragma kernel CSMain2
+#define enabled 0
+#if enabled
+
+#pragma kernel RedrawPrescaledInput
+#pragma kernel Phosphor
 
 #define WRITE_BLUR(color, position) \
 {float4 WRITE_existing = _Buffer[position]; \
@@ -15,57 +18,151 @@ else \
 RWTexture2D<float4> _UIInput;
 RWTexture2D<float4> _Buffer;
 RWTexture2D<float4> _Buffer2;
-float _decay;
+RWTexture2D<float4> _HiResBuffer;
+float _Decay=0.2f;
+float _StartYOffset=0.0f;
+float _EndYOffset=0.0f;
+float _SampleScaleY = 1.0f;
+float _SampleOffsetY = 0.0f;
+
+#define FILLED(color) any((color)!=0)
 
 [numthreads(12,1,1)]
-void CSMain (uint3 dtid : SV_DispatchThreadID, uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex) 
+void RedrawPrescaledInput (uint3 dtid : SV_DispatchThreadID, uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex) 
 {
+
+/*
+#define WRITE_BLUR(color, position) \
+{float4 WRITE_existing = _Buffer[position]; \
+if (WRITE_existing.a < 1.0) \
+{ \
+	_Buffer[position] = color; \
+} \
+else \
+{ \
+	_Buffer[position] = max(WRITE_existing, color); \
+}}
+*/
+	
 	uint2 start = dtid.xy;
 
-	float4 inputColor = _UIInput[start];
+	uint2 scaledInputStart = start;
+	scaledInputStart.y = (uint) ((start.y + _SampleOffsetY) * _SampleScaleY);
+	//// No point in negative comparison, it would have overflowed
+	if (scaledInputStart.y >= 792)
+	{
+		_Buffer[start] = float4(0, 0, 0, 1);
+		return;
+	}
+	float4 inputColor = _UIInput[scaledInputStart];
 	float4 bufferColor = _Buffer[start];
 
 	int startPixelY = (int)(dtid.y * 12 + dtid.x);
 	int startOutputY = (int)(startPixelY * 2.75);
 
 	int startY = (int)(dtid.y * 33 + dtid.x * 2.75);
-
+	
+	int startInputY = (int) ((startOutputY + _SampleOffsetY) * _SampleScaleY);
+	startInputY = max(startInputY, 0);
+	startInputY = min(startInputY, 791);
+	
 	for (int x = 0; x < 1200; x++)
 	{
-		// _Buffer[uint2(x, startOutputY)] = float4(x / 1200.0f, 0.0, 0.0, 1.0);
-		float4 inputColor = _UIInput[uint2(1200-x, 792-startOutputY)];
+		float4 inputColor = _UIInput[uint2(x, startInputY)];
+		int yOffset;
+		if (startY > 0)
+		{
+			//_Buffer[uint2(x, startY - 1)] = float4(0, 0, 0, 1);
+		}
 		// get max of above and below
-		[unroll]for (int yOffset = -1; yOffset <= 0; yOffset++)
+		//for (yOffset = _StartYOffset; yOffset < _EndYOffset; yOffset++)
+		//{
+		//	if (startY + yOffset >= 0 && startY + yOffset < 792)
+		//	{
+		//		int scaledInputY = (int) ((startOutputY + yOffset + _SampleOffsetY) * _SampleScaleY);
+		//		scaledInputY = max(scaledInputY, 0);
+		//		scaledInputY = min(scaledInputY, 791);
+		//		float4 neighborColor = _UIInput[uint2(x, scaledInputY)];
+		//		if (neighborColor.r > inputColor.r) inputColor.r = neighborColor.r;
+		//		if (neighborColor.g > inputColor.g) inputColor.g = neighborColor.g;
+		//		if (neighborColor.b > inputColor.b) inputColor.b = neighborColor.b;
+		//	}
+		//}
+
+		inputColor.a = 1.0;
+
+		float4 originalInputColor = inputColor;
+		
+		inputColor *= 0.5;
+		//inputColor.a = 0.0;
+		//inputColor.a = 1.0;
+
+		for (yOffset = _StartYOffset; yOffset < _EndYOffset; yOffset++)
 		{
 			if (startY + yOffset >= 0 && startY + yOffset < 792)
 			{
-				float4 neighborColor = _UIInput[uint2(1200 - x, 792 - (startOutputY + yOffset))];
-				if (neighborColor.r > inputColor.r) inputColor.r = neighborColor.r;
-				if (neighborColor.g > inputColor.g) inputColor.g = neighborColor.g;
-				if (neighborColor.b > inputColor.b) inputColor.b = neighborColor.b;
+				//float4 tmp = inputColor;
+				//float4 neighborColor = _UIInput[uint2(x, startOutputY + yOffset)];
+				//if (neighborColor.r > tmp.r)
+				//	tmp.r = neighborColor.r;
+				//if (neighborColor.g > tmp.g)
+				//	tmp.g = neighborColor.g;
+				//if (neighborColor.b > tmp.b)
+				//	tmp.b = neighborColor.b;
+				//_Buffer[uint2(x, startY + yOffset)] = tmp;
+				WRITE_BLUR(inputColor, uint2(x, startY + yOffset));
 			}
 		}
-		if (inputColor.x <= 0 && inputColor.y <= 0 && inputColor.z <= 0)
-		{
-			//continue;
-		}
-		inputColor.a = 1.0;
-
-		_Buffer[uint2(x, startY)] = inputColor;
 		
-		inputColor *= 0.5;
-		inputColor.a = 0.0;
+		_Buffer[uint2(x, startY)] = originalInputColor;
+	}
+	return;
+}
+[numthreads(12, 1, 1)]
+void RedrawPrescaledInput_HiRes(uint3 dtid : SV_DispatchThreadID, uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex)
+{
+	uint2 start = dtid.xy;
 
-		WRITE_BLUR(inputColor, uint2(x, startY + 1));
-		WRITE_BLUR(inputColor, uint2(x, startY - 1));
-		WRITE_BLUR(inputColor, uint2(x - 1, startY));
-		WRITE_BLUR(inputColor, uint2(x + 1, startY));
+	uint2 scaledInputStart = start;
+	scaledInputStart.y = (uint) ((start.y + _SampleOffsetY) * _SampleScaleY);
+	//// No point in negative comparison, it would have overflowed
+	if (scaledInputStart.y >= 792)
+	{
+		_Buffer[start] = float4(0, 0, 0, 1);
+		return;
+	}
+	
+	float4 bufferColor = _Buffer[start];
 
+	int startPixelY = (int) (dtid.y * 12 + dtid.x);
+	int startOutputY = (int) (startPixelY * 2.75);
+
+	int startY = (int) (dtid.y * 33 + dtid.x * 2.75);
+	
+	int startInputY = (int) ((startOutputY + _SampleOffsetY) * _SampleScaleY);
+	startInputY = max(startInputY, 0);
+	startInputY = min(startInputY, 791);
+
+	// Three pixels per input pixel for roundedness, one empty scanline
+	int outputY = startPixelY * 4;
+	float4 previousInputColor = float4(0, 0, 0, 1);
+	float4 inputColor = _UIInput[uint2(x, startInputY)];
+	for (int x = 0; x < 1199; x++)
+	{
+		float4 nextInputColor = _UIInput[uint2(x + 1, startInputY)];
+		int yOffset;
+
+		int topY = outputY;
+		int middleY = outputY + 1;
+		int bottomY = outputY + 2;
+		int scanlineY = outputY + 3;
+
+		_Buffer[uint2(x, middleY)] = inputColor;
 	}
 	return;
 }
 [numthreads(8,8,1)]
-void CSMain2 (uint3 dtid : SV_DispatchThreadID)
+void Phosphor (uint3 dtid : SV_DispatchThreadID)
 {
 	uint2 start = dtid.xy;
 	float4 inputColor = _Buffer[start];
@@ -80,7 +177,7 @@ void CSMain2 (uint3 dtid : SV_DispatchThreadID)
 	}
 	else
 	{
-		bufferColor -= _decay * float4(1,1,1,1);
+		bufferColor -= _Decay * float4(1,1,1,1);
 		if (bufferColor.r < inputColor.r)
 		{
 			bufferColor = inputColor;
@@ -88,6 +185,7 @@ void CSMain2 (uint3 dtid : SV_DispatchThreadID)
 	}
 	bufferColor.a = 1.0;
 
-    _Buffer2[dtid.xy] = bufferColor;
-	_Buffer[dtid.xy] = float4(0, 0, 0, 0);
+	_Buffer2[dtid.xy] = bufferColor;
+	//_Buffer[dtid.xy] = float4(0, 0, 0, 0);
 }
+#endif

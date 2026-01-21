@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: PostProcessTestMaterial1
-  m_Shader: {fileID: 10761, guid: 0000000000000000f000000000000000, type: 0}
+  m_Shader: {fileID: 4800000, guid: 6d44788d205befe4285ddd393b74a273, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -70,6 +70,8 @@ Material:
     - _ColorMask: 15
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
+    - _DistanceCutoff: 0.5
+    - _DistanceFactor: 3.11
     - _DstBlend: 0
     - _FwidthFactor: 0
     - _GlossMapScale: 1
@@ -78,15 +80,17 @@ Material:
     - _MaxRadius: 32
     - _Metallic: 0
     - _MinPixelSize: 1
+    - _Mip0: 1
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _PixelRoundness: 1
+    - _PassThrough: 1
+    - _PixelRoundness: 1.941
     - _PixelSnap: 0
     - _Quality: 1
-    - _RoundnessAspect: 1
-    - _ScanLineGap: 0.022
-    - _ScanlineGap: 0.001
+    - _RoundnessAspect: 10
+    - _ScanLineGap: 0
+    - _ScanlineGap: 0.5
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1

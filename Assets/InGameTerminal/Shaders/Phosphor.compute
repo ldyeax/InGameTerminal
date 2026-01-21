@@ -1,0 +1,34 @@
+#pragma kernel Phosphor
+
+RWTexture2D<float4> _UIInput;
+RWTexture2D<float4> _UIOutput;
+float _Decay = 0.2f;
+
+#define FILLED(color) any((color.rgb)!=0)
+
+[numthreads(8, 8, 1)]
+void Phosphor(uint3 dtid : SV_DispatchThreadID)
+{
+	uint2 start = dtid.xy;
+	float4 inputColor = _UIInput[start];
+	float4 bufferColor = _UIOutput[start];
+	bool new_input = FILLED(inputColor);
+
+	if (new_input)
+	{
+		bufferColor.r = inputColor.r > 0 ? inputColor.r : 0.0;
+		bufferColor.g = inputColor.g > 0 ? inputColor.g : 0.0;
+		bufferColor.b = inputColor.b > 0 ? inputColor.b : 0.0;
+	}
+	else
+	{
+		bufferColor -= _Decay * float4(1, 1, 1, 1);
+		if (bufferColor.r < inputColor.r)
+		{
+			bufferColor = inputColor;
+		}
+	}
+	bufferColor.a = 1.0;
+
+	_UIOutput[dtid.xy] = bufferColor;
+}
