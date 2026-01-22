@@ -70,6 +70,19 @@ namespace InGameTerminal
 			var raycaster = Util.GetOrCreateComponent<GraphicRaycaster>(gameObject);
 
 			_rectTransform = Util.GetOrCreateComponent<RectTransform>(gameObject);
+
+#if UNITY_EDITOR
+			if (!TerminalDefinition)
+			{
+				TerminalDefinition = Util.GetDefaultTerminalDefinition();
+			}
+#endif
+			if (!TerminalDefinition)
+			{
+				Debug.LogError("TerminalDefinition is not set on Terminal!", this);
+				enabled = false;
+				return;
+			}
 		}
 
 		private void Reset() => EnsureSetup();

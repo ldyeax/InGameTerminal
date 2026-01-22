@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿using InGameTerminal.TerminalDefinitions;
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
 
 namespace InGameTerminal
 {
@@ -96,5 +99,37 @@ namespace InGameTerminal
 			}
 			return ret;
 		}
+
+#if UNITY_EDITOR
+		public static List<T> GetAllScriptableObjectInstances<T>() where T : ScriptableObject
+		{
+			// Find all asset GUIDs of the specified type
+			string[] guids = AssetDatabase.FindAssets("t:" + typeof(T).Name);
+
+			List<T> assets = new List<T>();
+			foreach (string guid in guids)
+			{
+				// Get the asset path from the GUID
+				string path = AssetDatabase.GUIDToAssetPath(guid);
+				// Load the asset at the path
+				T asset = AssetDatabase.LoadAssetAtPath<T>(path);
+				if (asset != null)
+				{
+					assets.Add(asset);
+				}
+			}
+			return assets;
+		}
+		public static UnityTerminalDefinitionBase GetDefaultTerminalDefinition()
+		{
+			var allDefinitions = GetAllScriptableObjectInstances<VT320_ScriptableObject>();
+			if (allDefinitions.Count > 0)
+			{
+				return allDefinitions[0];
+			}
+			Debug.LogError("No terminal definitions found in project. Please create at least one terminal definition.");
+			return null;
+		}
+#endif
 	}
 }
