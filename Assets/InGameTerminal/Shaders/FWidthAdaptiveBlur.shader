@@ -20,7 +20,6 @@ Shader "InGameTerminal/FWidthAdaptiveBlur"
 		
 		Cull Off
 		Lighting Off
-		ZWrite Off
 		Blend SrcAlpha OneMinusSrcAlpha
 		
 		Pass

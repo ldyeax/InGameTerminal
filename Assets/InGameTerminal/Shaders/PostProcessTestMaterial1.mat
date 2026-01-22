@@ -84,7 +84,7 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _PassThrough: 1
+    - _PassThrough: 0
     - _PixelRoundness: 1.941
     - _PixelSnap: 0
     - _Quality: 1

@@ -4,7 +4,7 @@ RWTexture2D<float4> _UIInput;
 RWTexture2D<float4> _UIOutput;
 float _Decay = 0.2f;
 
-#define FILLED(color) any((color.rgb)!=0)
+#define FILLED(inputColor, minColor) (inputColor.r>minColor || inputColor.g>minColor || inputColor.b>minColor)
 
 [numthreads(8, 8, 1)]
 void Phosphor(uint3 dtid : SV_DispatchThreadID)
@@ -12,22 +12,15 @@ void Phosphor(uint3 dtid : SV_DispatchThreadID)
 	uint2 start = dtid.xy;
 	float4 inputColor = _UIInput[start];
 	float4 bufferColor = _UIOutput[start];
-	bool new_input = FILLED(inputColor);
+	float minColor = .01;
+	bool new_input = FILLED(inputColor, minColor);
+	bool old_output = FILLED(bufferColor, minColor);
 
-	if (new_input)
-	{
-		bufferColor.r = inputColor.r > 0 ? inputColor.r : 0.0;
-		bufferColor.g = inputColor.g > 0 ? inputColor.g : 0.0;
-		bufferColor.b = inputColor.b > 0 ? inputColor.b : 0.0;
-	}
-	else
-	{
-		bufferColor -= _Decay * float4(1, 1, 1, 1);
-		if (bufferColor.r < inputColor.r)
-		{
-			bufferColor = inputColor;
-		}
-	}
+	bufferColor -= _Decay * float4(1, 1, 1, 1);
+	if (bufferColor.r < inputColor.r) bufferColor.r = inputColor.r;
+	if (bufferColor.g < inputColor.g) bufferColor.g = inputColor.g;
+	if (bufferColor.b < inputColor.b) bufferColor.b = inputColor.b;
+
 	bufferColor.a = 1.0;
 
 	_UIOutput[dtid.xy] = bufferColor;

@@ -103,7 +103,7 @@ Shader "InGameTerminal/VT320 Fancy 1"
 					// Convert to texels per pixel
 					float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
 					float texelsPerPixelY = uvPerPixelY * _MainTex_TexelSize.w;
-					
+
 					// Calculate sample offset to check neighboring texels
 					// We sample in a small neighborhood and take the maximum alpha (dilation)
 					float2 texelSize = _MainTex_TexelSize.xy;
