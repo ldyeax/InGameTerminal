@@ -15,13 +15,28 @@ void Phosphor(uint3 dtid : SV_DispatchThreadID)
 	float minColor = .01;
 	bool new_input = FILLED(inputColor, minColor);
 	bool old_output = FILLED(bufferColor, minColor);
+	if (!new_input && !old_output)
+	{
+		_UIOutput[dtid.xy] = float4(0, 0, 0, 1);
+		return;
+	}
 
-	bufferColor -= _Decay * float4(1, 1, 1, 1);
-	if (bufferColor.r < inputColor.r) bufferColor.r = inputColor.r;
-	if (bufferColor.g < inputColor.g) bufferColor.g = inputColor.g;
-	if (bufferColor.b < inputColor.b) bufferColor.b = inputColor.b;
-
-	bufferColor.a = 1.0;
+	bufferColor -= _Decay * float4(1, 1, 1, 0);
+	if (bufferColor.r < inputColor.r)
+	{
+		bufferColor.r = inputColor.r;
+		bufferColor.a = 1.0;
+	}
+	if (bufferColor.g < inputColor.g)
+	{
+		bufferColor.g = inputColor.g;
+		bufferColor.a = 1.0;
+	}
+	if (bufferColor.b < inputColor.b)
+	{
+		bufferColor.b = inputColor.b;
+		bufferColor.a = 1.0;
+	}
 
 	_UIOutput[dtid.xy] = bufferColor;
 }

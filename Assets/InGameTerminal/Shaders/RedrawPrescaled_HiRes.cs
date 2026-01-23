@@ -13,6 +13,8 @@ namespace InGameTerminal.Shaders
 	{
 		[SerializeField]
 		private ComputeShader computeShader;
+		[SerializeField]
+		private bool round = false;
 
 		private int kernel_RedrawPrescaledInput_HiRes;
 
@@ -96,6 +98,7 @@ namespace InGameTerminal.Shaders
 			computeShader.SetTexture(kernel_RedrawPrescaledInput_HiRes, "_UIInput", _UIInput);
 			computeShader.SetTexture(kernel_RedrawPrescaledInput_HiRes, "_UIOutput", _UIOutput);
 			//Debug.Log($"{_UIInput.width}x{_UIInput.height} -> {_UIOutput.width}x{_UIOutput.height}");
+			computeShader.SetBool("_Round", round);
 			computeShader.Dispatch(kernel_RedrawPrescaledInput_HiRes, 1, 24, 1);
 		}
 		private void LateUpdate()

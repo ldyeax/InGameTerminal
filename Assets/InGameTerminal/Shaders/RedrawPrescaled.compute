@@ -20,6 +20,7 @@ float _EndYOffset = 0.0f;
 float _SampleScaleY = 1.0f;
 float _SampleOffsetY = 0.0f;
 bool _HiRes = false;
+bool _Round = false;
 
 #define BLACK float4(0, 0, 0, 1)
 
@@ -165,25 +166,35 @@ void RedrawPrescaledInput_HiRes(uint3 dtid : SV_DispatchThreadID, uint3 groupID 
 		inputColor = _UIInput[uint2(x, middleY)];
 		//inputColor.r = inputColor.b = 0.0;
 		bool filled = FILLED(inputColor);
-		if (previousFilled && filled)
+		if (_Round)
+		{
+			if (previousFilled && filled)
+			{
+				_UIOutput[uint2(x, middleY)] = inputColor;
+				_UIOutput[uint2(x, topY)] = inputColor;
+				_UIOutput[uint2(x, bottomY)] = inputColor;
+			}
+			else if (previousFilled && !filled)
+			{
+				_UIOutput[uint2(x, middleY)] = previousInputColor;
+				_UIOutput[uint2(x, topY)] = BLACK;
+				_UIOutput[uint2(x, bottomY)] = BLACK;
+			}
+			else
+			{
+				_UIOutput[uint2(x, middleY)] = inputColor;
+				_UIOutput[uint2(x, topY)] = BLACK;
+				_UIOutput[uint2(x, bottomY)] = BLACK;
+			}
+			
+		}
+		else
 		{
 			_UIOutput[uint2(x, middleY)] = inputColor;
 			_UIOutput[uint2(x, topY)] = inputColor;
 			_UIOutput[uint2(x, bottomY)] = inputColor;
 		}
-		else if (previousFilled && !filled)
-		{
-			_UIOutput[uint2(x, middleY)] = previousInputColor;
-			_UIOutput[uint2(x, topY)] = BLACK;
-			_UIOutput[uint2(x, bottomY)] = BLACK;
-		}
-		else
-		{
-			_UIOutput[uint2(x, middleY)] = inputColor;
-			_UIOutput[uint2(x, topY)] = BLACK;
-			_UIOutput[uint2(x, bottomY)] = BLACK;
-		}
-			
+
 		previousFilled = filled;
 		previousInputColor = inputColor;
 

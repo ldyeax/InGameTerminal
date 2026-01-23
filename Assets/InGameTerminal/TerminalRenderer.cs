@@ -527,7 +527,7 @@ namespace InGameTerminal
 				return false;
 			}
 
-			this.transform.localScale = Vector3.one;
+			//this.transform.localScale = Vector3.one;
 			GetComponent<RectTransform>().sizeDelta = new Vector2(terminal.CanvasWidth, terminal.CanvasHeight);
 
 			return true;

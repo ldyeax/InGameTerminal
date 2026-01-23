@@ -44,6 +44,8 @@ namespace InGameTerminal
 		public int Height = 24;
 		[SerializeField]
 		public UnityTerminalDefinitionBase TerminalDefinition;
+		[SerializeField]
+		public TerminalRenderer Renderer;
 
 		[SerializeField]
 		private Canvas _unityCanvas;
@@ -58,7 +60,7 @@ namespace InGameTerminal
 
 		private SerialDriver.SerialDriver testSerialDriver = null;
 		private ITerminalBridge testTerminalBridge;
-		private void EnsureSetup()
+		private bool EnsureSetup()
 		{
 			_unityCanvas = Util.GetOrCreateComponent<Canvas>(gameObject);
 			_unityCanvas.renderMode = RenderMode.WorldSpace;
@@ -81,13 +83,21 @@ namespace InGameTerminal
 			{
 				Debug.LogError("TerminalDefinition is not set on Terminal!", this);
 				enabled = false;
-				return;
+				return false;
 			}
+
+			Renderer = Util.GetOrCreateComponent<TerminalRenderer>(gameObject);
+
+			return true;
 		}
 
 		private void Reset() => EnsureSetup();
 		private void OnValidate() => EnsureSetup();
-		private void Awake() { if (!Application.isPlaying) EnsureSetup(); }
+		private void Awake()
+		{
+			if (!Application.isPlaying)
+				EnsureSetup();
+		}
 		public Vector2Int GetTerminalPosition(Element element)
 		{
 			float x = element.RectTransform.offsetMin.x;

@@ -35,8 +35,8 @@ Material:
     m_Floats:
     - _Amount: 1
     - _BlurFactor: 1
-    - _BlurFactorX: 1
-    - _BlurFactorY: 1
+    - _BlurFactorX: 10
+    - _BlurFactorY: 0
     - _ColorMask: 15
     - _DistanceCutoff: 0.5
     - _DistanceFactor: 5
@@ -46,11 +46,12 @@ Material:
     - _Mip0: 1
     - _OutputAlphaOnly: 0
     - _PassThrough: 0
-    - _PixelRoundness: 2
+    - _PixelRoundness: 0.3
     - _PixelSnap: 0
     - _Radius: 2
-    - _RoundnessAspect: 0.1
-    - _ScanlineGap: 0
+    - _RoundnessAspect: 1
+    - _RoundnessType: 1.533
+    - _ScanlineGap: 0.093
     - _Softness: 0.5
     - _Stencil: 0
     - _StencilComp: 8
@@ -61,7 +62,7 @@ Material:
     - _Thickness: 1
     - _Threshold: 1
     - _UseUIAlphaClip: 0
-    - _VerticalSpan: 4
+    - _VerticalSpan: 1
     - _YOffset: 0
     m_Colors:
     - _Color: {r: 0, g: 1, b: 0, a: 1}

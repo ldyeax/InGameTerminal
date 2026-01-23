@@ -37,7 +37,7 @@ namespace InGameTerminal.Shaders
 		[Range(0.0f, 1.0f)]
 		[SerializeField]
 		private float _PassThrough;
-		[Range(0.0f, 1.0f)]
+		[Range(-1.0f, 1.0f)]
 		[SerializeField]
 		private float _Threshold;
 

@@ -12,8 +12,8 @@ namespace InGameTerminal.Shaders
 		private Terminal terminal;
 		[SerializeField]
 		private Transform preview;
-		[SerializeField]
-		private RenderTexture renderTexture;
+		//[SerializeField]
+		//private RenderTexture renderTexture;
 		[SerializeField]
 		private Shader[] effects;
 		private void OnEnable()
@@ -29,16 +29,19 @@ namespace InGameTerminal.Shaders
 			float aspectHeight = terminal.Height * screenGlyphHeight;
 			camera.aspect = aspectWidth / aspectHeight;
 			camera.orthographicSize = terminal.Height * terminal.TerminalDefinition.GlyphHeight * terminal.TerminalDefinition.PixelHeight * 0.5f;
+			// put camera in front of terminal
+			camera.transform.position = terminal.transform.position + new Vector3(aspectWidth/2, -camera.orthographicSize, -1f);
+			camera.transform.eulerAngles = new Vector3(0, 0, 180);
 			if (preview)
 			{
 				preview.localScale = new Vector3(aspectWidth, aspectHeight, 1);
 			}
-			int desiredWidth = Mathf.CeilToInt(aspectWidth);
-			int desiredHeight = Mathf.CeilToInt(aspectHeight);
-			if (renderTexture.width != desiredWidth || renderTexture.height != desiredHeight)
-			{
-				Debug.LogWarning($"RenderTexture should be {desiredWidth}x{desiredHeight}", this);
-			}
+			//int desiredWidth = Mathf.CeilToInt(aspectWidth);
+			//int desiredHeight = Mathf.CeilToInt(aspectHeight);
+			//if (renderTexture.width != desiredWidth || renderTexture.height != desiredHeight)
+			//{
+			//	Debug.LogWarning($"RenderTexture should be {desiredWidth}x{desiredHeight}", this);
+			//}
 
 			//RenderTexture currentSource = renderTexture;
 			//foreach (Shader effect in effects)

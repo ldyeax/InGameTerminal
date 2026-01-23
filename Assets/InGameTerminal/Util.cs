@@ -9,7 +9,7 @@ namespace InGameTerminal
 	{
 		public static T GetOrCreateComponent<T>(GameObject parent) where T : Component
 		{
-			T ret = parent.GetComponent<T>();
+			T ret = parent.GetComponentInChildren<T>();
 			if (!ret)
 			{
 				ret = parent.AddComponent<T>();
