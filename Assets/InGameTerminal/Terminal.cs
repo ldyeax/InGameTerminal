@@ -490,6 +490,57 @@ namespace InGameTerminal
 							});
 							currentCharacterBank = cell.CharacterBank;
 						}
+
+						// Sync attributes for ALL cells (including box drawing characters)
+						// This ensures the terminal state is correct before rendering any character,
+						// so that subsequent characters inherit the correct state
+						bool isSpace = cell.IsSpace(TerminalDefinition);
+						if (cell.TextAttributes != terminalState.TextAttributes)
+						{
+							// Bold and Italic don't visually affect space characters, so skip them for spaces
+							if (!isSpace && cell.TextAttributes.Bold != terminalState.TextAttributes.Bold)
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.Bold
+								});
+								terminalState.TextAttributes.Bold = !terminalState.TextAttributes.Bold;
+							}
+							if (!isSpace && cell.TextAttributes.Italic != terminalState.TextAttributes.Italic)
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.Italic
+								});
+								terminalState.TextAttributes.Italic = !terminalState.TextAttributes.Italic;
+							}
+							// Underline and Inverted DO visually affect spaces
+							if (cell.TextAttributes.Underline != terminalState.TextAttributes.Underline)
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.Underline
+								});
+								terminalState.TextAttributes.Underline = !terminalState.TextAttributes.Underline;
+							}
+							if (cell.TextAttributes.Blink != terminalState.TextAttributes.Blink)
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.Blink
+								});
+								terminalState.TextAttributes.Blink = !terminalState.TextAttributes.Blink;
+							}
+							if (cell.TextAttributes.Inverted != terminalState.TextAttributes.Inverted)
+							{
+								terminalCommands.Add(new TerminalCommand()
+								{
+									CommandType = TerminalCommandType.Invert
+								});
+								terminalState.TextAttributes.Inverted = !terminalState.TextAttributes.Inverted;
+							}
+						}
+
 						if (cell.HasTerminalCommand)
 						{
 							terminalCommands.Add(new TerminalCommand()
@@ -502,49 +553,6 @@ namespace InGameTerminal
 						}
 						else
 						{
-							if (cell.TextAttributes != terminalState.TextAttributes)
-							{
-								if (cell.TextAttributes.Bold != terminalState.TextAttributes.Bold)
-								{
-									terminalCommands.Add(new TerminalCommand()
-									{
-										CommandType = TerminalCommandType.Bold
-									});
-									terminalState.TextAttributes.Bold = !terminalState.TextAttributes.Bold;
-								}
-								if (cell.TextAttributes.Italic != terminalState.TextAttributes.Italic)
-								{
-									terminalCommands.Add(new TerminalCommand()
-									{
-										CommandType = TerminalCommandType.Italic
-									});
-									terminalState.TextAttributes.Italic = !terminalState.TextAttributes.Italic;
-								}
-								if (cell.TextAttributes.Underline != terminalState.TextAttributes.Underline)
-								{
-									terminalCommands.Add(new TerminalCommand()
-									{
-										CommandType = TerminalCommandType.Underline
-									});
-									terminalState.TextAttributes.Underline = !terminalState.TextAttributes.Underline;
-								}
-								if (cell.TextAttributes.Blink != terminalState.TextAttributes.Blink)
-								{
-									terminalCommands.Add(new TerminalCommand()
-									{
-										CommandType = TerminalCommandType.Blink
-									});
-									terminalState.TextAttributes.Blink = !terminalState.TextAttributes.Blink;
-								}
-								if (cell.TextAttributes.Inverted != terminalState.TextAttributes.Inverted)
-								{
-									terminalCommands.Add(new TerminalCommand()
-									{
-										CommandType = TerminalCommandType.Invert
-									});
-									terminalState.TextAttributes.Inverted = !terminalState.TextAttributes.Inverted;
-								}
-							}
 							byte b = cell.GetByte(TerminalDefinition);
 							if (b < 127)
 							{
@@ -632,8 +640,8 @@ namespace InGameTerminal
 		{
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
-			ref var textAttributes = ref terminalState.TextAttributes;
-			currentState.TextAttributes = textAttributes;
+			// currentState.TextAttributes is passed in by the caller and represents the inherited attributes
+			// Don't use terminalState.TextAttributes here - that represents the VT320's current attribute state
 
 			int childCount = transform.childCount;
 			for (int i_outer = 0; i_outer < childCount; i_outer++)
@@ -822,14 +830,15 @@ namespace InGameTerminal
 				}
 				if (element is Elements.Modifier modifier)
 				{
-					TextAttributes oldTextAttributes = textAttributes;
-					textAttributes.Bold = textAttributes.Bold || modifier.Bold;
-					textAttributes.Italic = textAttributes.Italic || modifier.Italic;
-					textAttributes.Underline = textAttributes.Underline || modifier.Underline;
-					textAttributes.Blink = textAttributes.Blink || modifier.Blink;
-					textAttributes.Inverted = textAttributes.Inverted || modifier.Invert;
-					BuildBufferFromChildren(modifier.RectTransform, currentState, ref terminalState);
-					terminalState.TextAttributes = textAttributes = oldTextAttributes;
+					// Create modified state for children - don't touch terminalState.TextAttributes
+					// (that represents the VT320's state, not the inherited UI attributes)
+					TerminalBufferValue modifiedState = currentState;
+					modifiedState.TextAttributes.Bold = currentState.TextAttributes.Bold || modifier.Bold;
+					modifiedState.TextAttributes.Italic = currentState.TextAttributes.Italic || modifier.Italic;
+					modifiedState.TextAttributes.Underline = currentState.TextAttributes.Underline || modifier.Underline;
+					modifiedState.TextAttributes.Blink = currentState.TextAttributes.Blink || modifier.Blink;
+					modifiedState.TextAttributes.Inverted = currentState.TextAttributes.Inverted || modifier.Invert;
+					BuildBufferFromChildren(modifier.RectTransform, modifiedState, ref terminalState);
 					continue;
 				}
 			}
