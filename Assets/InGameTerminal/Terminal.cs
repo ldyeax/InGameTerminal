@@ -502,6 +502,49 @@ namespace InGameTerminal
 						}
 						else
 						{
+							if (cell.TextAttributes != terminalState.TextAttributes)
+							{
+								if (cell.TextAttributes.Bold != terminalState.TextAttributes.Bold)
+								{
+									terminalCommands.Add(new TerminalCommand()
+									{
+										CommandType = TerminalCommandType.Bold
+									});
+									terminalState.TextAttributes.Bold = !terminalState.TextAttributes.Bold;
+								}
+								if (cell.TextAttributes.Italic != terminalState.TextAttributes.Italic)
+								{
+									terminalCommands.Add(new TerminalCommand()
+									{
+										CommandType = TerminalCommandType.Italic
+									});
+									terminalState.TextAttributes.Italic = !terminalState.TextAttributes.Italic;
+								}
+								if (cell.TextAttributes.Underline != terminalState.TextAttributes.Underline)
+								{
+									terminalCommands.Add(new TerminalCommand()
+									{
+										CommandType = TerminalCommandType.Underline
+									});
+									terminalState.TextAttributes.Underline = !terminalState.TextAttributes.Underline;
+								}
+								if (cell.TextAttributes.Blink != terminalState.TextAttributes.Blink)
+								{
+									terminalCommands.Add(new TerminalCommand()
+									{
+										CommandType = TerminalCommandType.Blink
+									});
+									terminalState.TextAttributes.Blink = !terminalState.TextAttributes.Blink;
+								}
+								if (cell.TextAttributes.Inverted != terminalState.TextAttributes.Inverted)
+								{
+									terminalCommands.Add(new TerminalCommand()
+									{
+										CommandType = TerminalCommandType.Invert
+									});
+									terminalState.TextAttributes.Inverted = !terminalState.TextAttributes.Inverted;
+								}
+							}
 							byte b = cell.GetByte(TerminalDefinition);
 							if (b < 127)
 							{

@@ -14,6 +14,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
+using System.Text;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -580,6 +581,13 @@ namespace InGameTerminal
 				int start = 0;
 				int end = start + commandsPerFrame;
 				DrawTerminalCommandsToMesh(terminalCommands, start, end, id);
+				StringBuilder sb = new();
+				sb.Append($"Terminal commands: ");
+				foreach (var tc in terminalCommands)
+				{
+					sb.Append(tc.ToString() + " ");
+				}
+				Debug.Log(sb.ToString(), this);
 				//UpdatePreviousAndNextVertexColors(id, false);
 				UpdateUVs();
 				while (end < terminalCommands.Count)

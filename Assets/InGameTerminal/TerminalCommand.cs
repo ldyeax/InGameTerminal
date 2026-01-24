@@ -52,7 +52,10 @@ namespace InGameTerminal
 		public TerminalCommandType CommandType;
 		public int X;
 		public int Y;
+		public override string ToString()
+		{
+			return CommandType.ToString() + "(" + X + ", " + Y + ")";
+		}
 	}
-
 }
 
