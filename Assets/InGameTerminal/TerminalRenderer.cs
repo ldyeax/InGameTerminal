@@ -126,6 +126,7 @@ namespace InGameTerminal
 		List<Color32> colors = new List<Color32>();
 		List<float> xLeftList = new List<float>();
 		List<float> yTopList = new List<float>();
+		List<int> atlasIndices = new List<int>();
 
 		int vertexOffset = 0;
 		private void InitChar(int terminalX, int terminalY, char c)
@@ -133,7 +134,10 @@ namespace InGameTerminal
 			var atlastXY = _terminalDefinition.CharToXY(c);
 			var atlasX = atlastXY.x;
 			var atlasY = atlastXY.y;
-			
+
+			int atlasIndex = atlasY * _terminalDefinition.AtlasCols + atlasX;
+			atlasIndices.Add(atlasIndex);
+
 			// Calculate pixel positions - use integer math to ensure exact positioning
 			float pixelX = terminalX * _terminalDefinition.GlyphWidth;
 			float pixelY = terminalY * _terminalDefinition.GlyphHeight;
@@ -207,7 +211,8 @@ namespace InGameTerminal
 			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows;
 			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows;
 
-			
+			int atlasIndex = atlasY * _terminalDefinition.AtlasCols + atlasX;
+			atlasIndices[cellIndex] = atlasIndex;
 
 			// Update UVs for the quad
 			uvs[vertexIndex + 0] = new Vector2(uvLeft, uvTop);
@@ -226,6 +231,87 @@ namespace InGameTerminal
 			//float xLeft = xLeftList[cellIndex];
 			//float yTop = yTopList[cellIndex];
 			//vertices[vertexIndex] = new Vector3(xLeft + (textAttributes.Italic ? 2.0f : 0.0f), yTop, 0);
+		}
+		// Previous column atlas index goes in green, next column atlas index goes in blue
+		// This allows shaders to do smooth scrolling effects and italic shearing
+		private void UpdatePreviousAndNextVertexColors(int id, bool useMesh = false)
+		{
+			var spaceXY = _terminalDefinition.CharToXY(' ');
+			int spaceIndex = spaceXY.y * _terminalDefinition.AtlasCols + spaceXY.x;
+			for (int y = 0; y < terminal.Height; y++)
+			{
+				for (int x = 0; x < terminal.Width; x++)
+				{
+					int cellIndex = y * terminal.Width + x;
+					int vertexIndex = cellIndex * 4;
+
+					//if (!useMesh)
+					//{
+
+						int previousAtlasIndex = (x > 0) ? atlasIndices[cellIndex - 1] : spaceIndex;
+						int nextAtlasIndex = (x < terminal.Width - 1) ? atlasIndices[cellIndex + 1] : spaceIndex;
+						ref var textAttributes = ref terminalState.terminalBuffer[x, y].TextAttributes;
+						if (textAttributes.ID != id)
+						{
+							//continue;
+						}
+						ref bool previousItalic = ref textAttributes.PreviousItalic;
+						previousItalic = false;
+						if (x > 0)
+						{
+							ref var terminalBuffer = ref terminalState.terminalBuffer;
+							previousItalic = terminalBuffer[x - 1, y].TextAttributes.Italic;
+						}
+						ref bool nextItalic = ref textAttributes.NextItalic;
+						nextItalic = false;
+						if (x < terminal.Width - 1)
+						{
+							ref var terminalBuffer = ref terminalState.terminalBuffer;
+							nextItalic = terminalBuffer[x + 1, y].TextAttributes.Italic;
+						}
+						Color32 baseColor = textAttributes.AttributesToVertexColor32();
+						byte r = baseColor.r;
+						byte g = (byte)(previousAtlasIndex & 0xFF);
+						byte b = (byte)(nextAtlasIndex & 0xFF);
+						byte a = baseColor.a;
+						Color32 updatedColor = new Color32(r, g, b, a);
+						// Update colors for the quad
+						colors[vertexIndex + 0] = updatedColor;
+						colors[vertexIndex + 1] = updatedColor;
+						colors[vertexIndex + 2] = updatedColor;
+						colors[vertexIndex + 3] = updatedColor;
+					//}
+					//else
+					//{
+					//	Color32 previousColor = x > 0 ? colors[vertexIndex - 4] : new Color32(0, 0, 0, 0);
+					//	Color32 nextColor = x < terminal.Width - 1 ? colors[vertexIndex + 4] : new Color32(0, 0, 0, 0);
+					//	Color32 thisColor = colors[vertexIndex];
+					//	TextAttributes previousTextAttributes = new TextAttributes(previousColor);
+					//	TextAttributes nextTextAttributes = new TextAttributes(nextColor);
+					//	TextAttributes thisTextAttributes = new TextAttributes(thisColor);
+					//	thisTextAttributes.PreviousItalic = previousTextAttributes.Italic;
+					//	thisTextAttributes.NextItalic = nextTextAttributes.Italic;
+					//	// Derive only from mesh
+					//	var previousUV = x > 0 ? uvs[vertexIndex - 4] : new Vector2((float)spaceXY.x / _terminalDefinition.AtlasCols, 0);
+					//	var nextUV = x < terminal.Width - 1 ? uvs[vertexIndex + 4] : new Vector2((float)spaceXY.x / _terminalDefinition.AtlasCols, 0);
+					//	var thisUV = uvs[vertexIndex];
+					//	int previousAtlasIndex = x > 0 ? (int)(previousUV.x * _terminalDefinition.AtlasCols) : spaceIndex;
+					//	int nextAtlasIndex = x < terminal.Width - 1 ? (int)(nextUV.x * _terminalDefinition.AtlasCols) : spaceIndex;
+					//	int thisAtlasIndex = (int)(thisUV.x * _terminalDefinition.AtlasCols);
+					//	Color32 baseColor = thisTextAttributes.AttributesToVertexColor32();
+					//	byte r = baseColor.r;
+					//	byte g = (byte)(previousAtlasIndex & 0xFF);
+					//	byte b = (byte)(nextAtlasIndex & 0xFF);
+					//	byte a = baseColor.a;
+					//	Color32 updatedColor = new Color32(r, g, b, a);
+					//	// Update colors for the quad
+					//	colors[vertexIndex + 0] = updatedColor;
+					//	colors[vertexIndex + 1] = updatedColor;
+					//	colors[vertexIndex + 2] = updatedColor;
+					//	colors[vertexIndex + 3] = updatedColor;
+					//}
+				}
+			}
 		}
 		#endregion mesh
 
@@ -252,6 +338,7 @@ namespace InGameTerminal
 					}
 				}
 			}
+			UpdatePreviousAndNextVertexColors(0);
 		}
 		private void UpdateUVs()
 		{
@@ -275,10 +362,11 @@ namespace InGameTerminal
 			}
 		}
 		private DrawTerminalCommandsState drawTerminalCommandsState;
-		private void DrawTerminalCommandsToMesh(List<TerminalCommand> terminalCommands, int start, int end)
+		private void DrawTerminalCommandsToMesh(List<TerminalCommand> terminalCommands, int start, int end, int id)
 		{
 			ref Vector2Int position = ref drawTerminalCommandsState.Position;
 			ref TextAttributes textAttributes = ref drawTerminalCommandsState.TextAttributes;
+			textAttributes.ID = id;
 
 			Vector2Int spaceXY = _terminalDefinition.CharToXY(' ');
 
@@ -473,6 +561,7 @@ namespace InGameTerminal
 		private IEnumerator UpdateCoroutine()
 		{
 			bool first = false;
+			int id = 0;
 			while (true)
 			{
 				if (!CheckSetupForUpdate())
@@ -490,22 +579,24 @@ namespace InGameTerminal
 				}
 				int start = 0;
 				int end = start + commandsPerFrame;
-				DrawTerminalCommandsToMesh(terminalCommands, start, end);
+				DrawTerminalCommandsToMesh(terminalCommands, start, end, id);
+				//UpdatePreviousAndNextVertexColors(id, false);
 				UpdateUVs();
 				while (end < terminalCommands.Count)
 				{
 					start = end;
 					end = start + commandsPerFrame;
 					yield return new WaitForSeconds((float)commandsPerFrame / commandsPerSecond);
-					DrawTerminalCommandsToMesh(terminalCommands, start, end);
+					DrawTerminalCommandsToMesh(terminalCommands, start, end, id);
 					// Debug.Log($"DrawTerminalCommandsToMesh commands {start} to {end}");
+					//UpdatePreviousAndNextVertexColors(id, true);
 					UpdateUVs();
 				}
-
 				//else
 				//{
 				//	Debug.Log("Not ReadyToDraw TerminalRenderer UpdateCoroutine");
 				//}
+				id++;
 				yield return null; // Always yield to prevent infinite loop
 			}
 		}

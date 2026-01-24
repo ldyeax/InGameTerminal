@@ -62,13 +62,17 @@ Shader "InGameTerminal/VT320 First Pass"
 			float _AtlasRows;
 			float _UnderlineRow;
 			
-			// Attribute bit thresholds (from AttributesToVertexColor encoding)
-			// Bold: 0.5, Italic: 0.25, Underline: 0.125, Blink: 0.0625, Inverted: 0.03125
-			#define BOLD_THRESHOLD 0.375
-			#define ITALIC_THRESHOLD 0.1875
-			#define UNDERLINE_THRESHOLD 0.09375
-			#define BLINK_THRESHOLD 0.046875
-			#define INVERTED_THRESHOLD 0.0234375
+			// Attribute bitmask (from TextAttributes.GetHashCode())
+			// Bold: bit 0 (1), Italic: bit 1 (2), Underline: bit 2 (4)
+			// Blink: bit 3 (8), Inverted: bit 4 (16)
+			// PreviousItalic: bit 5 (32), NextItalic: bit 6 (64)
+			#define BOLD_BIT 1
+			#define ITALIC_BIT 2
+			#define UNDERLINE_BIT 4
+			#define BLINK_BIT 8
+			#define INVERTED_BIT 16
+			#define PREV_ITALIC_BIT 32
+			#define NEXT_ITALIC_BIT 64
 			
 			v2f vert(appdata v)
 			{
@@ -95,17 +99,19 @@ Shader "InGameTerminal/VT320 First Pass"
 			
 			fixed4 frag(v2f i) : SV_Target
 			{
-				// Decode attributes from vertex color red channel
-				float attrValue = i.color.r;
-				bool isBold = attrValue >= BOLD_THRESHOLD;
-				if (isBold) attrValue -= 0.5;
-				bool isItalic = attrValue >= ITALIC_THRESHOLD;
-				if (isItalic) attrValue -= 0.25;
-				bool isUnderline = attrValue >= UNDERLINE_THRESHOLD;
-				if (isUnderline) attrValue -= 0.125;
-				bool isBlink = attrValue >= BLINK_THRESHOLD;
-				if (isBlink) attrValue -= 0.0625;
-				bool isInverted = attrValue >= INVERTED_THRESHOLD;
+				// Decode attributes from vertex color channels
+				// R: bitmask, G: previous atlas index, B: next atlas index
+				int attrBits = (int)(i.color.r * 255.0 + 0.5);
+				int prevAtlasIndex = (int)(i.color.g * 255.0 + 0.5);
+				int nextAtlasIndex = (int)(i.color.b * 255.0 + 0.5);
+				
+				bool isBold = (attrBits & BOLD_BIT) != 0;
+				bool isItalic = (attrBits & ITALIC_BIT) != 0;
+				bool isUnderline = (attrBits & UNDERLINE_BIT) != 0;
+				bool isBlink = (attrBits & BLINK_BIT) != 0;
+				bool isInverted = (attrBits & INVERTED_BIT) != 0;
+				bool isPrevItalic = (attrBits & PREV_ITALIC_BIT) != 0;
+				bool isNextItalic = (attrBits & NEXT_ITALIC_BIT) != 0;
 				
 				// Position within the glyph (0 to 1)
 				float2 glyphPos = frac(i.uv * float2(_AtlasCols, _AtlasRows));
@@ -115,92 +121,45 @@ Shader "InGameTerminal/VT320 First Pass"
 				float rowInGlyph = (1.0 - glyphPos.y) * _GlyphHeight;
 				
 				float2 uv = i.uv;
-				fixed4 col;
-				// 1. ITALIC SHEAR - row-dependent horizontal shift
-				// Top rows: 0 shift, progressively more shift toward bottom
-				// Shift ranges from 0 to ~3 pixels over glyph height
+				fixed4 col = fixed4(0,0,0,0);
+				float2 uvUnit = float2(1.0/(_GlyphWidth*_AtlasCols), 0);
+				float divisions = 12.0;
 				
+				// Calculate italic shear amount for current row
+				// Positive = shift right (top rows), Negative = shift left (bottom rows)
+				int shiftAmount = 0;
+				for (float idx = 1.0; idx <= divisions; idx += 1.0)
+				{
+					if (glyphPos.y <= idx/divisions)
+					{
+						shiftAmount = (int)(0.5 * divisions - idx);
+						break;
+					}
+				}
+				
+				// 1. ITALIC SHEAR - row-dependent horizontal shift
 				bool skipFromItalic = false;
 				if (isItalic)
 				{
-					// Calculate shear amount based on row (0 at top, increasing toward bottom)
-					// We want: top=0, upper-middle=1, lower-middle=2, bottom=3 pixels
-					// float shearPixels = floor(rowInGlyph / (_GlyphHeight / 4.0));
-					// shearPixels = clamp(shearPixels, 0, 3);
-					
-					// // Convert pixel shift to UV shift
-					// float shearUV = shearPixels / (_MainTex_TexelSize.z);
-					// uv.x += shearUV;
-					// if (glyphPos.y < 0.5)
-					// {
-					// 	uv.x += 1.0/(_GlyphWidth*_AtlasCols);
-					// }
-					// else if (glyphPos.y > 0.66)
-					// {
-					// 	uv.x += 1.0/(_GlyphWidth*_AtlasCols);
-					// }
-					// //return fixed4(0,0,glyphPos.y,1);
-
-					float2 uvUnit = float2(1.0/(_GlyphWidth*_AtlasCols), 0);
-					// if (glyphPos.y < 0.25)
-					// {
-					// 	if (glyphPos.x > 1.0 - 1.0/_GlyphWidth) {
-					// 		skipFromItalic = true;
-					// 	}
-					// 	else {
-					// 		uv += uvUnit * 1.0;
-					// 	}
-					// }
-					// else if (glyphPos.y < 0.5)
-					// {
-					// 	uv += uvUnit * 0.5;
-					// }
-					// else if (glyphPos.y < 0.75)
-					// {
-					// 	if (glyphPos.x < 1.0/_GlyphWidth) {
-					// 		skipFromItalic = true;
-					// 	}
-					// 	else {
-					// 		uv -= uvUnit * 0.5;
-					// 	}
-						
-					// }
-					// else
-					// {
-					// 	if (glyphPos.x < 2.0/_GlyphWidth) {
-					// 		skipFromItalic = true;
-					// 	}
-					// 	else {
-					// 		uv -= uvUnit * 1.0;
-					// 	}
-					// }
-					float divisions = 12;
-					for (float i = 1; i <= divisions; i += 1.0)
+					if (shiftAmount < 0)
 					{
-						if (glyphPos.y <= i/divisions)
+						// Bottom rows shift left - check if we'd go into previous cell
+						if (glyphPos.x < (-shiftAmount)/_GlyphWidth)
 						{
-							//int shiftAmount = (int)((0.5*(divisions+1)) - i);
-							int shiftAmount = (int)(0.5*(divisions ) - i);
-							if (shiftAmount < 0)
-							{
-								// Check if we would shift outside glyph bounds
-								if (glyphPos.x < (-shiftAmount)/_GlyphWidth)
-								{
-									skipFromItalic = true;
-								}
-							}
-							if (shiftAmount > 0)
-							{
-								// Check if we would shift outside glyph bounds
-								if (glyphPos.x > 1.0 - (shiftAmount)/_GlyphWidth)
-								{
-									skipFromItalic = true;
-									break;
-								}
-							}
-							uv += shiftAmount * uvUnit;
-							break;
+							skipFromItalic = true;
 						}
+					}
+					if (shiftAmount > 0)
+					{
+						// Top rows shift right - check if we'd go into next cell
+						if (glyphPos.x > 1.0 - (shiftAmount)/_GlyphWidth)
+						{
+							skipFromItalic = true;
+						}
+					}
+					if (!skipFromItalic)
+					{
+						uv += shiftAmount * uvUnit;
 					}
 				}
 
@@ -214,15 +173,66 @@ Shader "InGameTerminal/VT320 First Pass"
 					col = tex2D(_MainTex, uv);
 				}
 				
-				glyphPos = frac(uv * float2(_AtlasCols, _AtlasRows));
+				// 2. Handle previous italic character bleeding into this cell
+				// When previous char is italic, its bottom portion shifts left and bleeds into our left side
+				if (isPrevItalic && shiftAmount < 0)
+				{
+					float bleedPixels = -shiftAmount;
+					float bleedThreshold = bleedPixels / _GlyphWidth;
+					
+					if (glyphPos.x < bleedThreshold)
+					{
+						// Calculate UV for the previous character
+						int prevAtlasX = prevAtlasIndex % (int)_AtlasCols;
+						int prevAtlasY = prevAtlasIndex / (int)_AtlasCols;
+						
+						// Sample from the right edge of the previous glyph, shifted by italic amount
+						float prevGlyphX = 1.0 - bleedThreshold + glyphPos.x;
+						float2 prevUV;
+						prevUV.x = (prevAtlasX + prevGlyphX) / _AtlasCols;
+						prevUV.y = ((float)prevAtlasY + (1.0 - glyphPos.y)) / _AtlasRows;
+						prevUV.y = 1.0 - prevUV.y; // Flip Y for atlas
+						
+						fixed4 prevCol = tex2D(_MainTex, prevUV);
+						// OR the pixels together (max blend)
+						col = max(col, prevCol);
+						//col.b = 1;
+					}
+				}
 				
+				// 3. Handle next italic character bleeding into this cell
+				// When next char is italic, its top portion shifts right and bleeds into our right side
+				if (isNextItalic && shiftAmount > 0)
+				{
+					float bleedPixels = shiftAmount;
+					float bleedThreshold = 1.0 - bleedPixels / _GlyphWidth;
+					
+					if (glyphPos.x > bleedThreshold)
+					{
+						// Calculate UV for the next character
+						int nextAtlasX = nextAtlasIndex % (int)_AtlasCols;
+						int nextAtlasY = nextAtlasIndex / (int)_AtlasCols;
+						
+						// Sample from the left edge of the next glyph, shifted by italic amount
+						float nextGlyphX = glyphPos.x - bleedThreshold;
+						float2 nextUV;
+						nextUV.x = (nextAtlasX + nextGlyphX) / _AtlasCols;
+						nextUV.y = ((float)nextAtlasY + (1.0 - glyphPos.y)) / _AtlasRows;
+						nextUV.y = 1.0 - nextUV.y; // Flip Y for atlas
+						
+						fixed4 nextCol = tex2D(_MainTex, nextUV);
+						// OR the pixels together (max blend)
+						col = max(col, nextCol);
+						//col.r = 1;
+					}
+				}
+				
+				glyphPos = frac(uv * float2(_AtlasCols, _AtlasRows));
 
 				// Apply tint color
 				col *= _Color;
 				
-
-				
-				// 3. UNDERLINE - force a specific row to be lit
+				// 4. UNDERLINE - force a specific row to be lit
 				// The underline row is near the bottom of the cell
 				if (isUnderline)
 				{
@@ -230,30 +240,21 @@ Shader "InGameTerminal/VT320 First Pass"
 					if (rowPixel >= _UnderlineRow && rowPixel < _UnderlineRow + 1.0)
 					{
 						// Force this row to be fully lit (white)
-						col.rgb = _Color;
+						col.rgb = _Color.rgb;
+						col.a = 1.0;
 					}
 				}
 
-				// 2. BOLD - OR with pixel shifted right by 1
-				// Moved after underline since we changed to just using max values
-				// Sample the pixel one texel to the left and OR the intensities
+				// 5. BOLD - maximize lit pixel intensities
 				if (isBold)
 				{
-					// float2 boldUV = uv;
-					// boldUV.x -= _MainTex_TexelSize.x; // Sample one pixel to the left
-					// fixed4 boldCol = tex2D(_MainTex, boldUV);
-					
-					// // OR operation: take maximum of both pixels
-					// col.rgb = max(col.rgb, boldCol.rgb);
-					// col.a = max(col.a, boldCol.a);
 					if (col.r > 0) col.r = 1.0;
 					if (col.g > 0) col.g = 1.0;
 					if (col.b > 0) col.b = 1.0;
-					col.a = 1.0;
+					if (col.a > 0) col.a = 1.0;
 				}
 
-				
-				// 4. INVERT - flip pixel values
+				// 6. INVERT - flip pixel values
 				// Happens after all other attribute processing
 				if (isInverted)
 				{

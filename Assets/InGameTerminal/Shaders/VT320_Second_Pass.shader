@@ -149,7 +149,7 @@ Shader "InGameTerminal/VT320 Fancy 2"
 				
 				// Apply vertical-only pixel rounding (horizontal scanline style)
 				// This creates continuous horizontal lines while keeping vertical dot separation
-				float scanlineMask = smoothstep(0.0, 1.0-_ScanlineGap, abs(0.5-verticalGroupPos)*2.0);
+				float scanlineMask = smoothstep(0.0, 1-_ScanlineGap, abs(0.5-verticalGroupPos)*2.0);
 
 				// // Apply scanline gap effect
 				if (_ScanlineGap < 1.0)
@@ -248,11 +248,23 @@ Shader "InGameTerminal/VT320 Fancy 2"
 						// Convert horizontal texel position to -1 to 1 range
 						float centeredX = texelPos.x * 2.0 - 1.0;
 
+						if (leftBrightness < threshold && rightBrightness < threshold)
+						{
+							if (currentBrightness > threshold)
+							{
+								// create a lone circle
+								float2 edgePos = float2(centeredX, centeredY / _RoundnessAspect);
+								float edgeDist = length(edgePos);
+								float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
+								col.rgb *= edgeMask / (max(dotMask, 0.001));
+							}
+						}
+						
 						if (leftBrightness > threshold && rightBrightness > threshold)
 						{
 							float2 edgePos = float2(0, centeredY / _RoundnessAspect);
 							float edgeDist = length(edgePos);
-							float edgeMask = 1.0 - smoothstep(0, 0.99, edgeDist);
+							float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
 
 							col.rgb *= edgeMask / (max(dotMask, 0.001));
 						}
@@ -283,18 +295,18 @@ Shader "InGameTerminal/VT320 Fancy 2"
 
 
 				half4 color_ret = col * i.color;
-				if (color_ret.r >= _Threshold)
-				{
-					color_ret.r = 1.0;
-				}
-				if (color_ret.g >= _Threshold)
-				{
-					color_ret.g = 1.0;
-				}
-				if (color_ret.b >= _Threshold)
-				{
-					color_ret.b = 1.0;
-				}
+				// if (color_ret.r >= _Threshold)
+				// {
+				// 	color_ret.r = 1.0;
+				// }
+				// if (color_ret.g >= _Threshold)
+				// {
+				// 	color_ret.g = 1.0;
+				// }
+				// if (color_ret.b >= _Threshold)
+				// {
+				// 	color_ret.b = 1.0;
+				// }
 				color_ret.a = 1.0;
 				color_ret = max(color_ret, colorFloor);
 				return color_ret;
