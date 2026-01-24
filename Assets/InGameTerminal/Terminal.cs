@@ -589,6 +589,8 @@ namespace InGameTerminal
 		{
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
+			ref var textAttributes = ref terminalState.TextAttributes;
+			currentState.TextAttributes = textAttributes;
 
 			int childCount = transform.childCount;
 			for (int i_outer = 0; i_outer < childCount; i_outer++)
@@ -663,6 +665,7 @@ namespace InGameTerminal
 							cell.HasTerminalCommand = false;
 							cell.SetChar(TerminalDefinition, c);
 							cell.ConnectorID = 0;
+							cell.TextAttributes = currentState.TextAttributes;
 						}
 
 						position.x++;
@@ -702,6 +705,7 @@ namespace InGameTerminal
 							cell.CharacterBank = TerminalCharacterBank.G1;
 							cell.HasTerminalCommand = true;
 							cell.TerminalCommandType = TerminalCommandType.Box_Horizontal;
+							cell.TextAttributes = currentState.TextAttributes;
 						}
 					}
 				endHorizontalLine:
@@ -726,6 +730,7 @@ namespace InGameTerminal
 							cell.CharacterBank = TerminalCharacterBank.G1;
 							cell.HasTerminalCommand = true;
 							cell.TerminalCommandType = TerminalCommandType.Box_Vertical;
+							cell.TextAttributes = currentState.TextAttributes;
 						}
 					}
 				endVerticalLine:
@@ -752,6 +757,7 @@ namespace InGameTerminal
 							// Set initial glyph - will be resolved by ActualizeConnectedLinesToBuffer
 							cell.AtlasX = TerminalDefinition.HorizontalLineX;
 							cell.AtlasY = TerminalDefinition.HorizontalLineY;
+							cell.TextAttributes = currentState.TextAttributes;
 						}
 					}
 
@@ -769,6 +775,18 @@ namespace InGameTerminal
 						bounds.yMax - 1
 					);
 					BuildBufferFromChildren(box.RectTransform, currentState, ref terminalState);
+					continue;
+				}
+				if (element is Elements.Modifier modifier)
+				{
+					TextAttributes oldTextAttributes = textAttributes;
+					textAttributes.Bold = textAttributes.Bold || modifier.Bold;
+					textAttributes.Italic = textAttributes.Italic || modifier.Italic;
+					textAttributes.Underline = textAttributes.Underline || modifier.Underline;
+					textAttributes.Blink = textAttributes.Blink || modifier.Blink;
+					textAttributes.Inverted = textAttributes.Inverted || modifier.Invert;
+					BuildBufferFromChildren(modifier.RectTransform, currentState, ref terminalState);
+					terminalState.TextAttributes = textAttributes = oldTextAttributes;
 					continue;
 				}
 			}
@@ -813,6 +831,7 @@ namespace InGameTerminal
 				cell.CharacterBank = TerminalCharacterBank.G1;
 				cell.HasTerminalCommand = true;
 				cell.TerminalCommandType = TerminalCommandType.Box_Horizontal;
+				cell.TextAttributes = terminalState.TextAttributes;
 			}
 		}
 
@@ -834,6 +853,7 @@ namespace InGameTerminal
 				cell.CharacterBank = TerminalCharacterBank.G1;
 				cell.HasTerminalCommand = true;
 				cell.TerminalCommandType = TerminalCommandType.Box_Vertical;
+				cell.TextAttributes = terminalState.TextAttributes;
 			}
 		}
 
@@ -852,6 +872,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_TopLeftCorner;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawTopRightCornerToBuffer(
@@ -869,6 +890,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_TopRightCorner;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawBottomLeftCornerToBuffer(
@@ -886,6 +908,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_BottomLeftCorner;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawBottomRightCornerToBuffer(
@@ -903,6 +926,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_BottomRightCorner;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawLeftTeeToBuffer(
@@ -920,6 +944,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_LeftTee;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawRightTeeToBuffer(
@@ -937,6 +962,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_RightTee;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawUpTeeToBuffer(
@@ -954,6 +980,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_UpTee;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawDownTeeToBuffer(
@@ -971,6 +998,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_DownTee;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawCrossToBuffer(
@@ -988,6 +1016,7 @@ namespace InGameTerminal
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
 			cell.TerminalCommandType = TerminalCommandType.Box_Cross;
+			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
 		private void DrawBoxToBuffer(
@@ -1032,6 +1061,7 @@ namespace InGameTerminal
 					cell.ConnectorID = connectorID;
 					cell.CharacterBank = TerminalCharacterBank.G1;
 					cell.HasTerminalCommand = true;
+					cell.TextAttributes = terminalState.TextAttributes;
 				}
 			}
 		}

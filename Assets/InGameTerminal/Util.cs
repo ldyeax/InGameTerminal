@@ -100,6 +100,7 @@ namespace InGameTerminal
 			return ret;
 		}
 
+
 #if UNITY_EDITOR
 		public static List<T> GetAllScriptableObjectInstances<T>() where T : ScriptableObject
 		{

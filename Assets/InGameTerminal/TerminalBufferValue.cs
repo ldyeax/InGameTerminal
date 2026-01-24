@@ -17,11 +17,7 @@ namespace InGameTerminal
 			AtlasX = 0;
 			AtlasY = 0;
 			ConnectorID = 0;
-			Italic = false;
-			Bold = false;
-			Underline = false;
-			Inverted = false;
-			Blink = false;
+			TextAttributes = new TextAttributes();
 			DeviceBytes = 0;
 			DeviceByte1 = 0;
 			DeviceByte2 = 0;
@@ -60,24 +56,22 @@ namespace InGameTerminal
 		public int AtlasX;
 		public int AtlasY;
 		public int ConnectorID;
-		public bool Italic;
-		public bool Bold;
-		public bool Underline;
-		public bool Inverted;
-		public bool Blink;
+		public TextAttributes TextAttributes;
 		public bool HasTerminalCommand;
 		public TerminalCommandType TerminalCommandType;
+
+		public readonly Color AttributesToVertexColor()
+		{
+			return TextAttributes.AttributesToVertexColor();
+		}
+
 		public static bool operator ==(TerminalBufferValue a, TerminalBufferValue b)
 		{
 			return
 				a.AtlasX == b.AtlasX &&
 				a.AtlasY == b.AtlasY &&
 				a.ConnectorID == b.ConnectorID &&
-				a.Italic == b.Italic &&
-				a.Bold == b.Bold &&
-				a.Underline == b.Underline &&
-				a.Inverted == b.Inverted &&
-				a.Blink == b.Blink &&
+				a.TextAttributes == b.TextAttributes &&
 				a.DeviceBytes == b.DeviceBytes &&
 				a.DeviceByte1 == b.DeviceByte1 &&
 				a.DeviceByte2 == b.DeviceByte2 &&
@@ -101,7 +95,7 @@ namespace InGameTerminal
 		}
 		public override readonly int GetHashCode()
 		{
-			string s = $"{AtlasX},{AtlasY},{ConnectorID},{Italic},{Bold},{Underline},{Inverted},{Blink},{DeviceBytes},{DeviceByte1},{DeviceByte2},{DeviceByte3},{DeviceByte4},{CharacterBank},{HasTerminalCommand},{TerminalCommandType}";
+			string s = $"{AtlasX},{AtlasY},{ConnectorID},{TextAttributes.GetHashCode()},{DeviceBytes},{DeviceByte1},{DeviceByte2},{DeviceByte3},{DeviceByte4},{CharacterBank},{HasTerminalCommand},{TerminalCommandType}";
 			return s.GetHashCode();
 		}
 

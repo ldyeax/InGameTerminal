@@ -124,6 +124,8 @@ namespace InGameTerminal
 		List<Vector2> uvs = new List<Vector2>();
 		List<int> triangles = new List<int>();
 		List<Color32> colors = new List<Color32>();
+		List<float> xLeftList = new List<float>();
+		List<float> yTopList = new List<float>();
 
 		int vertexOffset = 0;
 		private void InitChar(int terminalX, int terminalY, char c)
@@ -157,6 +159,8 @@ namespace InGameTerminal
 			vertices.Add(new Vector3(xRight, yTop, 0));
 			vertices.Add(new Vector3(xRight, yBottom, 0));
 			vertices.Add(new Vector3(xLeft, yBottom, 0));
+			xLeftList.Add(xLeft);
+			yTopList.Add(yTop);
 
 			// Add UVs
 			uvs.Add(new Vector2(uvLeft, uvTop));
@@ -189,7 +193,8 @@ namespace InGameTerminal
 			int atlasX,
 			int atlasY,
 			int terminalX,
-			int terminalY
+			int terminalY,
+			TextAttributes textAttributes
 		)
 		{
 			// Each cell has 4 vertices, calculate the starting index
@@ -202,11 +207,25 @@ namespace InGameTerminal
 			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows;
 			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows;
 
+			
+
 			// Update UVs for the quad
 			uvs[vertexIndex + 0] = new Vector2(uvLeft, uvTop);
 			uvs[vertexIndex + 1] = new Vector2(uvRight, uvTop);
 			uvs[vertexIndex + 2] = new Vector2(uvRight, uvBottom);
 			uvs[vertexIndex + 3] = new Vector2(uvLeft, uvBottom);
+
+			Color color = textAttributes.AttributesToVertexColor();
+			// Update colors for the quad
+			colors[vertexIndex + 0] = color;
+			colors[vertexIndex + 1] = color;
+			colors[vertexIndex + 2] = color;
+			colors[vertexIndex + 3] = color;
+
+			//// If it's popsicle, it's possible
+			//float xLeft = xLeftList[cellIndex];
+			//float yTop = yTopList[cellIndex];
+			//vertices[vertexIndex] = new Vector3(xLeft + (textAttributes.Italic ? 2.0f : 0.0f), yTop, 0);
 		}
 		#endregion mesh
 
@@ -228,7 +247,7 @@ namespace InGameTerminal
 
 					//if (cell != previousCell || forceRedraw)
 					{
-						DrawCharToMesh(cell.AtlasX, cell.AtlasY, x, y);
+						DrawCharToMesh(cell.AtlasX, cell.AtlasY, x, y, cell.TextAttributes);
 						// Debug.Log("DrawCharToMesh " + cell.GetChar(_terminalDefinition) + " at " + x + "," + y);
 					}
 				}
@@ -238,6 +257,8 @@ namespace InGameTerminal
 		{
 			// Update the mesh UVs
 			_mesh.SetUVs(0, uvs);
+			_mesh.SetColors(colors);
+			_mesh.SetVertices(vertices);
 			_mesh.UploadMeshData(false);
 
 			// Force the canvas renderer to update
@@ -247,21 +268,17 @@ namespace InGameTerminal
 		private struct DrawTerminalCommandsState
 		{
 			public Vector2Int Position;
-			public bool Italic;
-			public bool Bold;
-			public bool Underline;
-			public bool Inverted;
-			public bool Blink;
+			public TextAttributes TextAttributes;
+			public readonly Color AttributesToVertexColor()
+			{
+				return TextAttributes.AttributesToVertexColor();
+			}
 		}
 		private DrawTerminalCommandsState drawTerminalCommandsState;
 		private void DrawTerminalCommandsToMesh(List<TerminalCommand> terminalCommands, int start, int end)
 		{
 			ref Vector2Int position = ref drawTerminalCommandsState.Position;
-			ref bool italic = ref drawTerminalCommandsState.Italic;
-			ref bool bold = ref drawTerminalCommandsState.Bold;
-			ref bool underline = ref drawTerminalCommandsState.Underline;
-			ref bool inverted = ref drawTerminalCommandsState.Inverted;
-			ref bool blink = ref drawTerminalCommandsState.Blink;
+			ref TextAttributes textAttributes = ref drawTerminalCommandsState.TextAttributes;
 
 			Vector2Int spaceXY = _terminalDefinition.CharToXY(' ');
 
@@ -281,7 +298,7 @@ namespace InGameTerminal
 							position.y >= 0 && position.y < terminal.Height)
 						{
 							Vector2Int atlasXY = _terminalDefinition.CharToXY((char)command.X);
-							DrawCharToMesh(atlasXY.x, atlasXY.y, position.x, position.y);
+							DrawCharToMesh(atlasXY.x, atlasXY.y, position.x, position.y, textAttributes);
 						}
 						position.x++;
 						//if (position.x >= terminal.Width)
@@ -305,7 +322,7 @@ namespace InGameTerminal
 					case TerminalCommandType.Box_RightTee:
 					case TerminalCommandType.Box_UpTee:
 					case TerminalCommandType.Box_DownTee:
-						DrawCharToMesh(command.X, command.Y, position.x, position.y);
+						DrawCharToMesh(command.X, command.Y, position.x, position.y, drawTerminalCommandsState.TextAttributes);
 						position.x++;
 						//if (position.x >= terminal.Width)
 						//{
@@ -322,7 +339,7 @@ namespace InGameTerminal
 					//		position.y >= 0 && position.y < terminal.Height)
 					//	{
 					//		Vector2Int atlasXY = _terminalDefinition.ByteToXY((byte)command.X);
-					//		DrawCharToMesh(atlasXY.x, atlasXY.y, position.x, position.y);
+					//		DrawCharToMesh(atlasXY.x, atlasXY.y, position.x, position.y, drawTerminalCommandsState);
 					//	}
 					//	position.x++;
 					//	if (position.x >= terminal.Width)
@@ -365,23 +382,23 @@ namespace InGameTerminal
 						break;
 
 					case TerminalCommandType.Italic:
-						italic = !italic;
+						textAttributes.Italic = !textAttributes.Italic;
 						break;
 
 					case TerminalCommandType.Bold:
-						bold = !bold;
+						textAttributes.Bold = !textAttributes.Bold;
 						break;
 
 					case TerminalCommandType.Underline:
-						underline = !underline;
+						textAttributes.Underline = !textAttributes.Underline;
 						break;
 
 					case TerminalCommandType.Invert:
-						inverted = !inverted;
+						textAttributes.Inverted = !textAttributes.Inverted;
 						break;
 
 					case TerminalCommandType.Blink:
-						blink = !blink;
+						textAttributes.Blink = !textAttributes.Blink;
 						break;
 
 					case TerminalCommandType.EL_CursorToEnd:
@@ -389,7 +406,7 @@ namespace InGameTerminal
 						
 						for (int x = position.x; x < terminal.Width; x++)
 						{
-							DrawCharToMesh(spaceXY.x, spaceXY.y, x, position.y);
+							DrawCharToMesh(spaceXY.x, spaceXY.y, x, position.y, drawTerminalCommandsState.TextAttributes);
 						}
 						break;
 
@@ -397,7 +414,7 @@ namespace InGameTerminal
 						// Erase in Line - clear from beginning of line to cursor
 						for (int x = 0; x <= position.x; x++)
 						{
-							DrawCharToMesh(spaceXY.x, spaceXY.y, x, position.y);
+							DrawCharToMesh(spaceXY.x, spaceXY.y, x, position.y, drawTerminalCommandsState.TextAttributes);
 						}
 						break;
 
@@ -408,7 +425,7 @@ namespace InGameTerminal
 							int startX = (y == position.y) ? position.x : 0;
 							for (int x = startX; x < terminal.Width; x++)
 							{
-								DrawCharToMesh(spaceXY.x, spaceXY.y, x, y);
+								DrawCharToMesh(spaceXY.x, spaceXY.y, x, y, drawTerminalCommandsState.TextAttributes);
 							}
 						}
 						break;

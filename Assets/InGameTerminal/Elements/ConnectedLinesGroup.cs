@@ -25,13 +25,5 @@ namespace InGameTerminal.Elements
 			Selection.activeObject = go;
 			EditorSceneManager.MarkSceneDirty(go.scene);
 		}
-
-		private List<ConnectedLine> _childLines = new();
-
-		public IReadOnlyList<ConnectedLine> GetChildLines()
-		{
-			GetComponentsInChildren(_childLines);
-			return _childLines;
-		}
 	}
 }

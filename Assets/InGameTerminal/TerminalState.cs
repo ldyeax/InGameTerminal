@@ -4,5 +4,6 @@ namespace InGameTerminal
 	{
 		public TerminalBufferValue[,] terminalBuffer;
 		public TerminalBufferValue[,] previousTerminalBuffer;
+		public TextAttributes TextAttributes;
 	}
 }
