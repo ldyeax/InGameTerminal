@@ -823,7 +823,9 @@ namespace InGameTerminal
 						bounds.xMin,
 						bounds.yMin,
 						bounds.xMax - 1,
-						bounds.yMax - 1
+						bounds.yMax - 1,
+						-1,
+						box.Solid
 					);
 					BuildBufferFromChildren(box.RectTransform, currentState, ref terminalState);
 					continue;
@@ -1071,15 +1073,46 @@ namespace InGameTerminal
 			cell.TextAttributes = terminalState.TextAttributes;
 		}
 
+		private void DrawSpaceToBuffer(
+			ref TerminalState terminalState,
+			int terminalX,
+			int terminalY,
+			int connectorID = 0
+		)
+		{
+			ref var terminalBuffer = ref terminalState.terminalBuffer;
+			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
+			cell.AtlasX = TerminalDefinition.CharToXY(' ').x;
+			cell.AtlasY = TerminalDefinition.CharToXY(' ').y;
+			cell.ConnectorID = -1;
+			cell.CharacterBank = TerminalCharacterBank.ASCII;
+			cell.HasTerminalCommand = false;
+			cell.TextAttributes = terminalState.TextAttributes;
+		}
+
 		private void DrawBoxToBuffer(
 			ref TerminalState terminalState,
 			int startTerminalX,
 			int startTerminalY,
 			int endTerminalX,
 			int endTerminalY,
-			int connectorID = -1
+			int connectorID = -1,
+			bool solid = false
 		)
 		{
+			if (solid)
+			{
+				// Draw spaces if solid
+				for (int x = startTerminalX; x <= endTerminalX; x++ )
+				{
+					for (int y = startTerminalY; y <= endTerminalY; y++)
+					{
+						DrawSpaceToBuffer(ref terminalState, x, y, -1);
+					}
+				}
+			}
+			return;
+
 			// Draw horizontal lines
 			DrawHorizontalLineToBuffer(ref terminalState, startTerminalY, startTerminalX + 1, endTerminalX - 1, connectorID);
 			DrawHorizontalLineToBuffer(ref terminalState, endTerminalY, startTerminalX + 1, endTerminalX - 1, connectorID);

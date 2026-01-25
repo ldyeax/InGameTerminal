@@ -17,20 +17,42 @@ namespace InGameTerminal
 		private void Reset() => EnsureSetup();
 		private void OnValidate() => EnsureSetup();
 		private void Awake() { if (!Application.isPlaying) EnsureSetup(); }
+		private static Vector2Int GetPixelPosition(RectTransform rectTransform)
+		{
+			float x = rectTransform.anchoredPosition.x;
+			float y = -rectTransform.offsetMax.y;
+			var ret = new Vector2Int((int)x, (int)y);
+			return ret;
+		}
 		public Vector2 GetPixelPosition()
 		{
-			float x = RectTransform.offsetMin.x;
-			float y = -RectTransform.offsetMax.y;
-			var ret = new Vector2Int((int)x, (int)y);
+			var ret = GetPixelPosition(RectTransform);
+			Transform parent = RectTransform.parent;
+			while (parent)
+			{
+				if (parent.GetComponent<Terminal>())
+				{
+					break;
+				}
+				var parentRectTransform = parent.GetComponent<RectTransform>();
+				if (parentRectTransform)
+				{
+					var parentPos = GetPixelPosition(parentRectTransform);
+					ret.x += parentPos.x;
+					ret.y += parentPos.y;
+				}
+				parent = parent.parent;
+			}
 			return ret;
 		}
 		public Rect GetPixelBounds()
 		{
-			float x = RectTransform.offsetMin.x;
-			float y = -RectTransform.offsetMax.y;
+			Vector2 pixelPosition = GetPixelPosition();
+			float x = pixelPosition.x;
+			float y = pixelPosition.y;
 			float width = RectTransform.offsetMax.x - RectTransform.offsetMin.x;
 			float height = RectTransform.offsetMax.y - RectTransform.offsetMin.y;
-			
+
 			var ret = new Rect(x, y, width, height);
 			return ret;
 		}
