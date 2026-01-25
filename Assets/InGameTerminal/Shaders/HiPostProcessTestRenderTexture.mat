@@ -35,13 +35,16 @@ Material:
     m_Floats:
     - _Amount: 1
     - _BlurFactor: 1
-    - _BlurFactorX: 10
+    - _BlurFactorX: 0
     - _BlurFactorY: 0
     - _ColorMask: 15
     - _DistanceCutoff: 0.5
     - _DistanceFactor: 5
+    - _FadeEnd: 5
+    - _FadeStart: 1
     - _Invert: 0
     - _MaskFromLuma: 0
+    - _MaxTexelCheck: 3
     - _MinPixelSize: 1
     - _Mip0: 1
     - _OutputAlphaOnly: 0

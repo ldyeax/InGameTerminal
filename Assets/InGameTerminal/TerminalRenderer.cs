@@ -581,13 +581,13 @@ namespace InGameTerminal
 				int start = 0;
 				int end = start + commandsPerFrame;
 				DrawTerminalCommandsToMesh(terminalCommands, start, end, id);
-				StringBuilder sb = new();
-				sb.Append($"Terminal commands: ");
-				foreach (var tc in terminalCommands)
-				{
-					sb.Append(tc.ToString() + " ");
-				}
-				Debug.Log(sb.ToString(), this);
+				//StringBuilder sb = new();
+				//sb.Append($"Terminal commands: ");
+				//foreach (var tc in terminalCommands)
+				//{
+				//	sb.Append(tc.ToString() + " ");
+				//}
+				//Debug.Log(sb.ToString(), this);
 				//UpdatePreviousAndNextVertexColors(id, false);
 				UpdateUVs();
 				while (end < terminalCommands.Count)

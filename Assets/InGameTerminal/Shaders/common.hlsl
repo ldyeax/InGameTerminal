@@ -35,6 +35,6 @@ equivalent to:
 		GAUSS_ret += Blur1D(i.uv, GAUSS_direction, GAUSS_blur/(GAUSS_g+1.0)); \
 	} \
 	GAUSS_ret *= GAUSS_iter; \
-	return GAUSS_ret; \
+	return GAUSS_ret * 0.5; \
 } \
 }

@@ -669,10 +669,10 @@ namespace InGameTerminal
 				Vector2Int position = element.GetTerminalPosition(TerminalDefinition);
 				RectInt bounds = element.GetTerminalBounds(TerminalDefinition);
 
-				if (bounds.x < 0 || bounds.xMax > Width || bounds.y < 0 || bounds.yMax > Height)
-				{
-					continue;
-				}
+				//if (bounds.x < 0 || bounds.xMax > Width || bounds.y < 0 || bounds.yMax > Height)
+				//{
+				//	continue;
+				//}
 
 				if (element is Elements.Text text)
 				{
@@ -692,20 +692,22 @@ namespace InGameTerminal
 							position.x = bounds.xMin;
 						}
 
-						// Bounds check before writing
-						if (position.x < 0 || position.x >= Width ||
-							position.y < 0 || position.y >= Height)
-						{
-							//Debug.Log("Bounds check");
-							goto endText;
-						}
+						//// Bounds check before writing
+						//if (position.x < 0 || position.x >= Width ||
+						//	position.y < 0 || position.y >= Height)
+						//{
+						//	//Debug.Log("Bounds check");
+						//	goto endText;
+						//}
 
 						if (isNewline)
 						{
 							continue;
 						}
 
-						if (!(text.Transparent && c == text.TransparentChar))
+						if (position.x >= 0 && position.x < Width
+							&& position.y >= 0 && position.y < Height
+							&& !(text.Transparent && c == text.TransparentChar))
 						{
 							ref TerminalBufferValue cell = ref terminalBuffer[
 								position.x,
@@ -745,7 +747,8 @@ namespace InGameTerminal
 						for (int x = bounds.xMin; x < bounds.xMax; x++)
 						{
 							if (x < 0 || x >= Width || y < 0 || y >= Height)
-								goto endHorizontalLine;
+								continue;
+							//	goto endHorizontalLine;
 
 							ref TerminalBufferValue cell = ref terminalBuffer[
 								x,
@@ -759,7 +762,7 @@ namespace InGameTerminal
 							cell.TextAttributes = currentState.TextAttributes;
 						}
 					}
-				endHorizontalLine:
+				//endHorizontalLine:
 					BuildBufferFromChildren(hline.RectTransform, currentState, ref terminalState);
 					continue;
 				}
@@ -770,7 +773,8 @@ namespace InGameTerminal
 						for (int x = bounds.xMin; x < bounds.xMax; x++)
 						{
 							if (x < 0 || x >= Width || y < 0 || y >= Height)
-								goto endVerticalLine;
+								continue;
+							//	goto endVerticalLine;
 
 							ref TerminalBufferValue cell = ref terminalBuffer[
 								x,
@@ -784,7 +788,7 @@ namespace InGameTerminal
 							cell.TextAttributes = currentState.TextAttributes;
 						}
 					}
-				endVerticalLine:
+				//endVerticalLine:
 					BuildBufferFromChildren(vline.RectTransform, currentState, ref terminalState);
 					continue;
 				}
@@ -801,7 +805,8 @@ namespace InGameTerminal
 						for (int x = bounds.xMin; x < bounds.xMax; x++)
 						{
 							if (x < 0 || x >= Width || y < 0 || y >= Height)
-								goto endConnectedLine;
+								continue;
+							//	goto endConnectedLine;
 
 							ref TerminalBufferValue cell = ref terminalBuffer[x, y];
 							cell.ConnectorID = currentState.ConnectorID;
@@ -812,7 +817,7 @@ namespace InGameTerminal
 						}
 					}
 
-				endConnectedLine:
+				//endConnectedLine:
 					BuildBufferFromChildren(line.RectTransform, currentState, ref terminalState);
 					continue;
 				}
@@ -824,7 +829,6 @@ namespace InGameTerminal
 						bounds.yMin,
 						bounds.xMax - 1,
 						bounds.yMax - 1,
-						-1,
 						box.Solid
 					);
 					BuildBufferFromChildren(box.RectTransform, currentState, ref terminalState);
@@ -878,6 +882,8 @@ namespace InGameTerminal
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			for (int x = startTerminalX; x <= endTerminalX; x++)
 			{
+				if (x < 0 || x >= Width || terminalY < 0 || terminalY >= Height)
+					continue;
 				ref TerminalBufferValue cell = ref terminalBuffer[x, terminalY];
 				cell.AtlasX = TerminalDefinition.HorizontalLineX;
 				cell.AtlasY = TerminalDefinition.HorizontalLineY;
@@ -900,6 +906,8 @@ namespace InGameTerminal
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			for (int y = startTerminalY; y <= endTerminalY; y++)
 			{
+				if (terminalX < 0 || terminalX >= Width || y < 0 || y >= Height)
+					continue;
 				ref TerminalBufferValue cell = ref terminalBuffer[terminalX, y];
 				cell.AtlasX = TerminalDefinition.VerticalLineX;
 				cell.AtlasY = TerminalDefinition.VerticalLineY;
@@ -918,6 +926,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.TopLeftCornerX;
@@ -936,6 +946,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.TopRightCornerX;
@@ -954,6 +966,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.BottomLeftCornerX;
@@ -972,6 +986,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.BottomRightCornerX;
@@ -990,6 +1006,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.LeftTeeX;
@@ -1008,6 +1026,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.RightTeeX;
@@ -1026,6 +1046,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.UpTeeX;
@@ -1044,6 +1066,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.DownTeeX;
@@ -1062,6 +1086,8 @@ namespace InGameTerminal
 			int connectorID = 0
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.CrossX;
@@ -1076,15 +1102,16 @@ namespace InGameTerminal
 		private void DrawSpaceToBuffer(
 			ref TerminalState terminalState,
 			int terminalX,
-			int terminalY,
-			int connectorID = 0
+			int terminalY
 		)
 		{
+			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
+				return;
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.CharToXY(' ').x;
 			cell.AtlasY = TerminalDefinition.CharToXY(' ').y;
-			cell.ConnectorID = -1;
+			cell.ConnectorID = 0;
 			cell.CharacterBank = TerminalCharacterBank.ASCII;
 			cell.HasTerminalCommand = false;
 			cell.TextAttributes = terminalState.TextAttributes;
@@ -1096,10 +1123,10 @@ namespace InGameTerminal
 			int startTerminalY,
 			int endTerminalX,
 			int endTerminalY,
-			int connectorID = -1,
 			bool solid = false
 		)
 		{
+			// Draw spaces if solid
 			if (solid)
 			{
 				// Draw spaces if solid
@@ -1107,25 +1134,24 @@ namespace InGameTerminal
 				{
 					for (int y = startTerminalY; y <= endTerminalY; y++)
 					{
-						DrawSpaceToBuffer(ref terminalState, x, y, -1);
+						DrawSpaceToBuffer(ref terminalState, x, y);
 					}
 				}
 			}
-			return;
 
 			// Draw horizontal lines
-			DrawHorizontalLineToBuffer(ref terminalState, startTerminalY, startTerminalX + 1, endTerminalX - 1, connectorID);
-			DrawHorizontalLineToBuffer(ref terminalState, endTerminalY, startTerminalX + 1, endTerminalX - 1, connectorID);
+			DrawHorizontalLineToBuffer(ref terminalState, startTerminalY, startTerminalX + 1, endTerminalX - 1, 0);
+			DrawHorizontalLineToBuffer(ref terminalState, endTerminalY, startTerminalX + 1, endTerminalX - 1, 0);
 
 			// Draw vertical lines
-			DrawVerticalLineToBuffer(ref terminalState, startTerminalX, startTerminalY + 1, endTerminalY - 1, connectorID);
-			DrawVerticalLineToBuffer(ref terminalState, endTerminalX, startTerminalY + 1, endTerminalY - 1, connectorID);
+			DrawVerticalLineToBuffer(ref terminalState, startTerminalX, startTerminalY + 1, endTerminalY - 1, 0);
+			DrawVerticalLineToBuffer(ref terminalState, endTerminalX, startTerminalY + 1, endTerminalY - 1, 0);
 
 			// Draw corners
-			DrawTopLeftCornerToBuffer(ref terminalState, startTerminalX, startTerminalY, connectorID);
-			DrawTopRightCornerToBuffer(ref terminalState, endTerminalX, startTerminalY, connectorID);
-			DrawBottomLeftCornerToBuffer(ref terminalState, startTerminalX, endTerminalY, connectorID);
-			DrawBottomRightCornerToBuffer(ref terminalState, endTerminalX, endTerminalY, connectorID);
+			DrawTopLeftCornerToBuffer(ref terminalState, startTerminalX, startTerminalY, 0);
+			DrawTopRightCornerToBuffer(ref terminalState, endTerminalX, startTerminalY, 0);
+			DrawBottomLeftCornerToBuffer(ref terminalState, startTerminalX, endTerminalY, 0);
+			DrawBottomRightCornerToBuffer(ref terminalState, endTerminalX, endTerminalY, 0);
 		}
 
 		private void DrawConnectedAreaToBuffer(
@@ -1142,6 +1168,8 @@ namespace InGameTerminal
 			{
 				for (int x = startTerminalX; x <= endTerminalX; x++)
 				{
+					if (x < 0 || x >= Width || y < 0 || y >= Height)
+						continue;
 					ref TerminalBufferValue cell = ref terminalBuffer[x, y];
 					cell.ConnectorID = connectorID;
 					cell.CharacterBank = TerminalCharacterBank.G1;

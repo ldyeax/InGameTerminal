@@ -43,7 +43,7 @@ namespace InGameTerminal
 		{
 			return !(a == b);
 		}
-		public override bool Equals(object obj)
+		public override readonly bool Equals(object obj)
 		{
 			if (obj is TextAttributes tOther)
 			{
@@ -51,7 +51,7 @@ namespace InGameTerminal
 			}
 			return false;
 		}
-		public override int GetHashCode()
+		public override readonly int GetHashCode()
 		{
 			return (Bold ? 1 : 0) |
 				   (Italic ? 2 : 0) |
