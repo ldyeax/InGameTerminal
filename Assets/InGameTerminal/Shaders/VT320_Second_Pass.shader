@@ -13,7 +13,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 	_Threshold ("Threshold", Range(0,1)) = 0.8
 	_BlurFactorX ("Blur Factor X", Range(0, 10)) = 0
 	_BlurFactorY ("Blur Factor Y", Range(0, 10)) = 0
-	_RoundnessType ("Roundness Type", Range(0,2)) = 0
+	_RoundnessType ("Roundness Type", Range(0,2)) = 05
 	_MaxTexelCheck ("_MaxTexelCheck", Range(1, 250)) = 1
 	_FadeStart ("Start fade to Glow", Range(1,100)) = 1
 	_FadeEnd ("End fade to Glow", Range(1, 100)) = 5
@@ -36,36 +36,36 @@ Shader "InGameTerminal/VT320 Second Pass"
 			"PreviewType" = "Plane"
 			"CanUseSpriteAtlas" = "True"
 		}
-		
+
 		Lighting Off
-		
+
 		Blend Off
-		
+
 		Pass
 		{
-			CGPROGRAM
+			HLSLPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			
+
 			#include "UnityCG.cginc"
 			#include "common.hlsl"
-			
+
 			float _RoundnessAspect;
 			struct appdata
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
-				float4 color : COLOR;
+				fixed4 color : COLOR;
 			};
-			
+
 			struct v2f
 			{
 				float4 vertex : SV_POSITION;
 				float2 uv : TEXCOORD0;
-				float4 color : COLOR;
+				fixed4 color : COLOR;
 				float2 screenPos : TEXCOORD1;
 			};
-			
+
 			sampler2D _MainTex;
 			float4 _MainTex_ST;
 			float4 _MainTex_TexelSize; // x=1/width, y=1/height, z=width, w=height
@@ -89,57 +89,57 @@ Shader "InGameTerminal/VT320 Second Pass"
 			{
 				v2f o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
-				
+
 				// Store screen position before snapping for fragment shader
 				o.screenPos = (o.vertex.xy / o.vertex.w + 1.0) * 0.5 * _ScreenParams.xy;
-				
+
 				// Pixel snap: round vertex position to nearest screen pixel
 				if (_PixelSnap > 0.5)
 				{
 					// Snap to nearest pixel
 					float2 snappedScreenPos = floor(o.screenPos + 0.5);
-					
+
 					// Convert back to clip space
 					o.vertex.xy = (snappedScreenPos / _ScreenParams.xy * 2.0 - 1.0) * o.vertex.w;
 				}
-				
+
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				o.color = v.color * _Color;
 				return o;
 			}
-			
+
 			fixed4 frag(v2f i) : SV_Target
 			{
 				float2 uv = i.uv;
 				fixed4 col;
 
 				if (_MainPass < 0.5) {
-					return float4(0,0,0,1);
+					return fixed4(0,0,0,1);
 				}
 
 				if (_PassThrough > 0.5)
 				{
 					return tex2D(_MainTex, uv) * i.color;
 				}
-				
+
 				col = tex2D(_MainTex, uv);
 
 				// Calculate UV derivatives to understand texel-to-pixel mapping
 				float2 uvDdx = ddx(uv);
 				float2 uvDdy = ddy(uv);
-					
+
 				// How much UV changes per screen pixel
 				float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
 				float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
-					
+
 				// Convert to texels per pixel
 				float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
 				float texelsPerPixelY = uvPerPixelY * _MainTex_TexelSize.w;
 
 				float texelsPerPixelMax = max(texelsPerPixelX, texelsPerPixelY);
 
-				fixed4 colorFloor = float4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
-				
+				fixed4 colorFloor = fixed4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
+
 				// if (texelsPerPixelMax > 1.0)
 				// {
 				// 	float smoothsteppedDistanceFactor = smoothstep(0.0, 6, texelsPerPixelMax - 1.0)/6.0;
@@ -160,13 +160,13 @@ Shader "InGameTerminal/VT320 Second Pass"
 				// For vertical span > 1, group multiple texels together
 				float2 texelCoord = uv * float2(_MainTex_TexelSize.z, _MainTex_TexelSize.w);
 				float2 texelPos = frac(texelCoord);
-				
+
 				// Calculate position within vertical span group (0 to 1 across _VerticalSpan texels)
 				//float verticalGroupPos = frac(texelCoord.y / _VerticalSpan);
 				float verticalGroupPos = frac(uv.y*24*12);
 
 
-				//return float4(verticalGroupPos, 0, 0, 1);
+				//return fixed4(verticalGroupPos, 0, 0, 1);
 				_ScanlineGap *= (1.0 - smoothstep(0, 1, texelsPerPixelY - 1.0));
 				// Apply vertical-only pixel rounding (horizontal scanline style)
 				// This creates continuous horizontal lines while keeping vertical dot separation
@@ -179,15 +179,15 @@ Shader "InGameTerminal/VT320 Second Pass"
 					// When texelPos.y is close to 1 (bottom of texel), darken the pixel
 					//float gapStart = 1.0 - _ScanlineGap;
 					//float scanlineMask = smoothstep(gapStart, verticalGroupPos, texelPos.y)/_VerticalSpan;
-					
-					
+
+
 					// Darken the gap area
 					col.rgb *= (1.0 - scanlineMask);
 				}
 
 				if (_PixelRoundness > 0.001)
 				{
-					
+
 					// Only use vertical position for the dot effect
 					// Convert vertical group position to -1 to 1 range (center at 0)
 					float centeredY = verticalGroupPos * 2.0 - 1.0;
@@ -196,14 +196,14 @@ Shader "InGameTerminal/VT320 Second Pass"
 					// Scale Y by aspect ratio to create oval shape
 					float scaledY = centeredY / _RoundnessAspect;
 					float dist = abs(scaledY);
-					
+
 					// Create vertical falloff (rounded top and bottom, but continuous horizontally)
 					//float edgeStart = 1.0 - _PixelRoundness * 0.5;
 					float edgeStart = (1.0)- _PixelRoundness;
 					float dotMask = (1.0) - smoothstep(edgeStart, 1.0, dist);
-					
+
 					//col.rgb *= dotMask;
-					
+
 					// Round horizontal edges where pixel meets non-pixel (capsule/stadium shape)
 					// Sample neighboring texels to detect horizontal boundaries
 					float2 texelSize = _MainTex_TexelSize.xy;
@@ -211,7 +211,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 					fixed4 leftLeftNeighbor = tex2D(_MainTex, uv - float2(texelSize.x*1.5, 0));
 					fixed4 rightNeighbor = tex2D(_MainTex, uv +  float2(texelSize.x*1.0, 0));
 					fixed4 rightRightNeighbor = tex2D(_MainTex, uv + float2(texelSize.x*1.5, 0));
-					
+
 					// Detect if we're at a left or right edge (current pixel is lit, neighbor is not)
 					float currentBrightness = max(col.r, max(col.g, col.b)) * col.a;
 					float leftBrightness = max(leftNeighbor.r, max(leftNeighbor.g, leftNeighbor.b)) * leftNeighbor.a;
@@ -224,18 +224,18 @@ Shader "InGameTerminal/VT320 Second Pass"
 					float threshold = 0.01;
 					bool isLeftEdge = (currentBrightness > threshold) && (leftBrightness < threshold);
 					bool isRightEdge = (currentBrightness > threshold) && (rightBrightness < threshold);
-					
+
 					if (_RoundnessType < 1.0)
 					{
 						if (currentBrightness < threshold)
 						{
-							float4 c1 = float4(0,0,0,0);
-							float4 c2 = float4(0,0,0,0);
-							float4 c = float4(0,0,0,0);
+							fixed4 c1 = fixed4(0,0,0,0);
+							fixed4 c2 = fixed4(0,0,0,0);
+							fixed4 c = fixed4(0,0,0,0);
 							float centeredX = texelPos.x * 2.0 - 1.0;
 							if (leftBrightness > threshold)
 							{
-								return float4(1,0,0,1);
+								return fixed4(1,0,0,1);
 								// Left edge: create elliptical shape on left side
 								float2 edgePos = float2(centeredX, centeredY / _RoundnessAspect);
 								float edgeDist = length(edgePos);
@@ -247,7 +247,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 							if (rightBrightness > threshold)
 							{
-								return float4(0,1,1,1);
+								return fixed4(0,1,1,1);
 								// Right edge: create elliptical shape on right side
 								float2 edgePos = float2(centeredX, centeredY / _RoundnessAspect);
 								float edgeDist = length(edgePos);
@@ -262,7 +262,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 								col.rgb *= c;
 							}
 						}
-						
+
 					}
 					else
 					{
@@ -280,7 +280,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 								col.rgb *= edgeMask / (max(dotMask, 0.001));
 							}
 						}
-						
+
 						if (leftBrightness > threshold && rightBrightness > threshold)
 						{
 							float2 edgePos = float2(0, centeredY / _RoundnessAspect);
@@ -291,8 +291,8 @@ Shader "InGameTerminal/VT320 Second Pass"
 						}
 						else
 						{
-							//return float4(texelPos.x, texelPos.y, 0, 1);
-						
+							//return fixed4(texelPos.x, texelPos.y, 0, 1);
+
 							if (leftBrightness > threshold)
 							{
 								float2 edgePos = float2(texelPos.x, centeredY / _RoundnessAspect);
@@ -312,10 +312,10 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 					}
 				}
-				
 
 
-				half4 color_ret = col * i.color;
+
+				fixed4 color_ret = col * i.color;
 				// if (color_ret.r >= _Threshold)
 				// {
 				// 	color_ret.r = 1.0;
@@ -331,14 +331,14 @@ Shader "InGameTerminal/VT320 Second Pass"
 				//color_ret += colorFloor;
 
 				float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_MainFadeStart)/(_MainFadeEnd - _MainFadeStart));
-				
+
 				color_ret *= (1.0 - fadeOff);
 
 				color_ret.a = 1.0;
 				//color_ret = max(color_ret, colorFloor);
 				return color_ret;
 			}
-			ENDCG
+			ENDHLSL
 		}
 
 		// Blur Pass
@@ -346,29 +346,29 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 		Pass
 		{
-			CGPROGRAM
+			HLSLPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			
+
 			#include "UnityCG.cginc"
 			#include "common.hlsl"
-			
+
 			float _RoundnessAspect;
 			struct appdata
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
-				float4 color : COLOR;
+				fixed4 color : COLOR;
 			};
-			
+
 			struct v2f
 			{
 				float4 vertex : SV_POSITION;
 				float2 uv : TEXCOORD0;
-				float4 color : COLOR;
+				fixed4 color : COLOR;
 				float2 screenPos : TEXCOORD1;
 			};
-			
+
 			sampler2D _MainTex;
 			float4 _MainTex_ST;
 			float4 _MainTex_TexelSize; // x=1/width, y=1/height, z=width, w=height
@@ -393,44 +393,44 @@ Shader "InGameTerminal/VT320 Second Pass"
 			{
 				v2f o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
-				
+
 				// Store screen position before snapping for fragment shader
 				o.screenPos = (o.vertex.xy / o.vertex.w + 1.0) * 0.5 * _ScreenParams.xy;
-				
+
 				// Pixel snap: round vertex position to nearest screen pixel
 				if (_PixelSnap > 0.5)
 				{
 					// Snap to nearest pixel
 					float2 snappedScreenPos = floor(o.screenPos + 0.5);
-					
+
 					// Convert back to clip space
 					o.vertex.xy = (snappedScreenPos / _ScreenParams.xy * 2.0 - 1.0) * o.vertex.w;
 				}
-				
+
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				o.color = v.color * _Color;
 				return o;
 			}
-			
+
 			fixed4 frag(v2f i) : SV_Target
 			{
 				if (_BlurPass < 0.5) {
-					discard; return float4(0,0,0,0);
+					discard; return fixed4(0,0,0,0);
 				}
 				float2 uv = i.uv;
 				fixed4 col;
-				
+
 				col = tex2D(_MainTex, uv);
 
 				// Calculate UV derivatives to understand texel-to-pixel mapping
 				float2 uvDdx = ddx(uv);
 				float2 uvDdy = ddy(uv);
 
-					
+
 				// How much UV changes per screen pixel
 				float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
 				float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
-					
+
 				// Convert to texels per pixel
 				float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
 				float texelsPerPixelY = uvPerPixelY * _MainTex_TexelSize.w;
@@ -491,7 +491,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 					}
 				}
 				if (samples < 1.0) {
-					discard; return float4(0,0,0,0);
+					discard; return fixed4(0,0,0,0);
 				}
 				ret /= samples;
 				ret.a = 1;
@@ -506,21 +506,21 @@ Shader "InGameTerminal/VT320 Second Pass"
 				//float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_FadeStart)/(_FadeEnd - _FadeStart));
 				float mainFadeOff = smoothstep(0, 1, (texelsPerPixelMax-_MainFadeStart)/(_MainFadeEnd - _MainFadeStart));
 				// float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_FadeStart)/(_FadeEnd - _FadeStart));
-				
+
 
 				ret *= i.color * mainFadeOff;
 				return ret;
 
-				fixed4 colorFloor = float4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
-				
+				fixed4 colorFloor = fixed4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
+
 
 				// Calculate position within the current texel (0 to 1)
 				// For vertical span > 1, group multiple texels together
 				float2 texelCoord = uv * float2(_MainTex_TexelSize.z, _MainTex_TexelSize.w);
 				float2 texelPos = frac(texelCoord);
-				
 
-				
+
+
 				fixed4 neighborCol = tex2D(_MainTex, uv + float2(uvDdx.x, uvDdy.y)*_NeighborFactor*texelsPerPixelMax);
 
 				col = (col + neighborCol) * 0.5;
@@ -528,7 +528,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 				return col * i.color;
 
 			}
-			ENDCG
+			ENDHLSL
 		}
 
 
@@ -537,33 +537,33 @@ Shader "InGameTerminal/VT320 Second Pass"
 		{
 			// blend multiply
 			Blend DstColor Zero
-			CGPROGRAM
+			HLSLPROGRAM
 			#pragma vertex vert_blur
 			#pragma fragment frag_blur_h
-			
+
 			#include "UnityCG.cginc"
 			#include "common.hlsl"
-			
+
 			sampler2D _MainTex;
 			float4 _MainTex_TexelSize;
 			float _FadeStart;
 			float _FadeEnd;
 			fixed4 _Color;
 			float _FadePass;
-			
+
 			struct appdata_blur
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
 			};
-			
+
 			struct v2f_blur
 			{
 				float4 vertex : SV_POSITION;
 				float2 uv : TEXCOORD0;
 				float3 worldPos : TEXCOORD1;
 			};
-			
+
 			v2f_blur vert_blur(appdata_blur v)
 			{
 				v2f_blur o;
@@ -573,13 +573,13 @@ Shader "InGameTerminal/VT320 Second Pass"
 				return o;
 			}
 
-			float4 frag_blur_h (v2f_blur i) : SV_Target
+			fixed4 frag_blur_h(v2f_blur i) : SV_Target
 			{
 				if (_FadePass < 0.5) {
 					discard; return fixed4(1,1,1,1);
 				}
-				float4 col = tex2D(_MainTex, i.uv);
-					
+				fixed4 col = tex2D(_MainTex, i.uv);
+
 				// Calculate UV derivatives to understand texel-to-pixel mapping
 				float2 uvDdx = ddx(i.uv);
 				float2 uvDdy = ddy(i.uv);
@@ -595,49 +595,49 @@ Shader "InGameTerminal/VT320 Second Pass"
 				texelsPerPixelY = abs(texelsPerPixelY);
 
 				float texelsPerPixelMax = max(texelsPerPixelX, texelsPerPixelY);
-				//return float4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
+				//return fixed4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
 
-				
+
 				float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_FadeStart)/(_FadeEnd - _FadeStart));
-				float4 fadeRet = float4(1,1,1,1) * (1.0-fadeOff);
+				fixed4 fadeRet = fixed4(1,1,1,1) * (1.0-fadeOff);
 				fadeRet.a = 1;
 				return fadeRet;
 			}
-			ENDCG
+			ENDHLSL
 		}
 
 		// horizontal Gaussian blur
 		Pass
 		{
-			// blend add 
+			// blend add
 			Blend One One
-			CGPROGRAM
+			HLSLPROGRAM
 			#pragma vertex vert_blur
 			#pragma fragment frag_blur_h
-			
+
 			#include "UnityCG.cginc"
 			#include "common.hlsl"
-			
+
 			sampler2D _MainTex;
 			float4 _MainTex_TexelSize;
 			float _BlurFactorX;
 			float _Threshold;
 			float _MaxTexelCheck;
 			float _GaussXPass;
-			
+
 			struct appdata_blur
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
 			};
-			
+
 			struct v2f_blur
 			{
 				float4 vertex : SV_POSITION;
 				float2 uv : TEXCOORD0;
 				float3 worldPos : TEXCOORD1;
 			};
-			
+
 			v2f_blur vert_blur(appdata_blur v)
 			{
 				v2f_blur o;
@@ -646,19 +646,19 @@ Shader "InGameTerminal/VT320 Second Pass"
 				o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
 				return o;
 			}
-			
+
 			// 9-tap Gaussian weights (approx sigma ~ 2.0)
 			static const float w0 = 0.2270270270; // center
 			static const float w1 = 0.1945945946;
 			static const float w2 = 0.1216216216;
 			static const float w3 = 0.0540540541;
 			static const float w4 = 0.0162162162;
-			
-			float4 Blur1D(float2 uv, float2 dir, float amount)
+
+			fixed4 Blur1D(float2 uv, float2 dir, float amount)
 			{
 				float2 stepUV = dir * _MainTex_TexelSize.xy * amount;
-				
-				float4 c = tex2D(_MainTex, uv) * w0;
+
+				fixed4 c = tex2D(_MainTex, uv) * w0;
 				c += tex2D(_MainTex, uv + stepUV * 1.0) * w1;
 				c += tex2D(_MainTex, uv - stepUV * 1.0) * w1;
 				c += tex2D(_MainTex, uv + stepUV * 2.0) * w2;
@@ -667,26 +667,26 @@ Shader "InGameTerminal/VT320 Second Pass"
 				c += tex2D(_MainTex, uv - stepUV * 3.0) * w3;
 				c += tex2D(_MainTex, uv + stepUV * 4.0) * w4;
 				c += tex2D(_MainTex, uv - stepUV * 4.0) * w4;
-				
+
 				return c;
 			}
 
-			float4 frag_blur_h (v2f_blur i) : SV_Target
+			fixed4 frag_blur_h(v2f_blur i) : SV_Target
 			{
 				if (_GaussXPass < 0.5 || _BlurFactorX < 0.1)
 				{
-					discard;return float4(0,0,0,0);
+					discard;return fixed4(0,0,0,0);
 				}
 
-				float4 col = tex2D(_MainTex, i.uv);
+				fixed4 col = tex2D(_MainTex, i.uv);
 				if (col.r > 0 || col.r > 0 || col.g > 0) {
-					discard; return float4(0,0,0,0);
+					discard; return fixed4(0,0,0,0);
 				}
 				// if (col.r + col.g + col.b < .03 || _BlurFactor < .01)
 				// {
-				// 	discard;return float4(0,0,0,0);
+				// 	discard;return fixed4(0,0,0,0);
 				// }
-					
+
 				// Calculate UV derivatives to understand texel-to-pixel mapping
 				float2 uvDdx = ddx(i.uv);
 				float2 uvDdy = ddy(i.uv);
@@ -699,56 +699,56 @@ Shader "InGameTerminal/VT320 Second Pass"
 				//float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
 				float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
 				texelsPerPixelX = abs(texelsPerPixelX);
-				//return float4(1,0,1,1);
+				//return fixed4(1,0,1,1);
 				float maxTexelCheck = _MaxTexelCheck;
 				float texelsCheck = smoothstep(1, maxTexelCheck, texelsPerPixelX);
 				// sample all texels
-				//return float4(texelsCheck/maxTexelCheck,0,0,1);
+				//return fixed4(texelsCheck/maxTexelCheck,0,0,1);
 				for (float x = -texelsCheck; x <= texelsCheck; x += 1.0)
 				{
 					float2 offsetUV = i.uv + float2(x * _MainTex_TexelSize.x, 0);
-					float4 sampleCol = tex2D(_MainTex, offsetUV);
+					fixed4 sampleCol = tex2D(_MainTex, offsetUV);
 					col = max(col, sampleCol);
 				}
 				return col;
 
 				GAUSS(texelsPerPixelX, float2(1,0), _BlurFactorX);
 
-				discard;return float4(0,0,0,0);
+				discard;return fixed4(0,0,0,0);
 			}
-			ENDCG
+			ENDHLSL
 		}
 
 		// vertical Gaussian blur
 		Pass
 		{
 			Blend One One
-			CGPROGRAM
+			HLSLPROGRAM
 			#pragma vertex vert_blur
 			#pragma fragment frag_blur_v
-			
+
 			#include "UnityCG.cginc"
 			#include "common.hlsl"
-			
+
 			sampler2D _MainTex;
 			float4 _MainTex_TexelSize;
 			float _BlurFactorY;
 			float _Threshold;
 			float _GaussYPass;
-			
+
 			struct appdata_blur
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
 			};
-			
+
 			struct v2f_blur
 			{
 				float4 vertex : SV_POSITION;
 				float2 uv : TEXCOORD0;
 				float3 worldPos : TEXCOORD1;
 			};
-			
+
 			v2f_blur vert_blur(appdata_blur v)
 			{
 				v2f_blur o;
@@ -757,19 +757,19 @@ Shader "InGameTerminal/VT320 Second Pass"
 				o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
 				return o;
 			}
-			
+
 			// 9-tap Gaussian weights (approx sigma ~ 2.0)
 			static const float w0 = 0.2270270270; // center
 			static const float w1 = 0.1945945946;
 			static const float w2 = 0.1216216216;
 			static const float w3 = 0.0540540541;
 			static const float w4 = 0.0162162162;
-			
-			float4 Blur1D(float2 uv, float2 dir, float amount)
+
+			fixed4 Blur1D(float2 uv, float2 dir, float amount)
 			{
 				float2 stepUV = dir * _MainTex_TexelSize.xy * amount;
-				
-				float4 c = tex2D(_MainTex, uv) * w0;
+
+				fixed4 c = tex2D(_MainTex, uv) * w0;
 				c += tex2D(_MainTex, uv + stepUV * 1.0) * w1;
 				c += tex2D(_MainTex, uv - stepUV * 1.0) * w1;
 				c += tex2D(_MainTex, uv + stepUV * 2.0) * w2;
@@ -778,20 +778,20 @@ Shader "InGameTerminal/VT320 Second Pass"
 				c += tex2D(_MainTex, uv - stepUV * 3.0) * w3;
 				c += tex2D(_MainTex, uv + stepUV * 4.0) * w4;
 				c += tex2D(_MainTex, uv - stepUV * 4.0) * w4;
-				
+
 				return c;
 			}
 
-			float4 frag_blur_v (v2f_blur i) : SV_Target
+			fixed4 frag_blur_v(v2f_blur i) : SV_Target
 			{
 				if (_GaussYPass < 0.5 || _BlurFactorY < .1) {
 					discard;
-					return float4(0,0,0,0);
+					return fixed4(0,0,0,0);
 				}
-				float4 col = tex2D(_MainTex, i.uv);
+				fixed4 col = tex2D(_MainTex, i.uv);
 				// if (col.r + col.g + col.b < .03 || _BlurFactor < .01)
 				// {
-				// 	discard;return float4(0,0,0,0);
+				// 	discard;return fixed4(0,0,0,0);
 				// }
 
 				// Calculate UV derivatives to understand texel-to-pixel mapping
@@ -801,17 +801,17 @@ Shader "InGameTerminal/VT320 Second Pass"
 				// How much UV changes per screen pixel
 				float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
 				float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
-					
+
 				// Convert to texels per pixel
 				float texelsPerPixelY = abs(uvPerPixelY * _MainTex_TexelSize.w);
 
 				GAUSS(texelsPerPixelY, float2(0,1), _BlurFactorY);
 
-				discard;return float4(0,0,0,0);
+				discard;return fixed4(0,0,0,0);
 			}
-			ENDCG
+			ENDHLSL
 		}
 	}
-	
+
 	Fallback "UI/Default"
 }

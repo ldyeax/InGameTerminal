@@ -29,7 +29,7 @@ Shader "InGameTerminal/VT320 First Pass"
 		
 		Pass
 		{
-			CGPROGRAM
+			HLSLPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
 			
@@ -40,14 +40,14 @@ Shader "InGameTerminal/VT320 First Pass"
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
-				float4 color : COLOR;
+				fixed4 color : COLOR;
 			};
 			
 			struct v2f
 			{
 				float4 vertex : SV_POSITION;
 				float2 uv : TEXCOORD0;
-				float4 color : COLOR;
+				fixed4 color : COLOR;
 				float2 screenPos : TEXCOORD1;
 			};
 			
@@ -272,7 +272,7 @@ Shader "InGameTerminal/VT320 First Pass"
 				
 				return col;
 			}
-			ENDCG
+			ENDHLSL
 		}
 	}
 	Fallback "UI/Default"
