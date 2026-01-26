@@ -38,3 +38,4 @@ equivalent to:
 	return GAUSS_ret * 0.5; \
 } \
 }
+#define LIT(c) (c.r>0 || c.g>0 || c.b>0)

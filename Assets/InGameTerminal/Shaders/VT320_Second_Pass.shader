@@ -1,4 +1,4 @@
-Shader "InGameTerminal/VT320 Fancy 2"
+Shader "InGameTerminal/VT320 Second Pass"
 {
 	Properties
 	{
@@ -17,6 +17,14 @@ Shader "InGameTerminal/VT320 Fancy 2"
 	_MaxTexelCheck ("_MaxTexelCheck", Range(1, 250)) = 1
 	_FadeStart ("Start fade to Glow", Range(1,100)) = 1
 	_FadeEnd ("End fade to Glow", Range(1, 100)) = 5
+	_MainFadeStart ("Main Fade Start", Range(1,100)) = 1
+	_MainFadeEnd ("Main Fade End", Range(1, 100)) = 5
+	_NeighborFactor ("Neighbor Factor", Range(0, 5)) = 0.5
+	[Toggle] _MainPass ("Enable Main Pass", Float) = 1
+	[Toggle] _BlurPass ("Enable Blur Pass", Float) = 0
+	[Toggle] _FadePass ("Enable Fade Pass", Float) = 1
+	[Toggle] _GaussXPass ("Enable Gaussian X Pass", Float) = 0
+	[Toggle] _GaussYPass ("Enable Gaussian Y Pass", Float) = 0
 	}
 	SubShader
 	{
@@ -74,6 +82,9 @@ Shader "InGameTerminal/VT320 Fancy 2"
 			float _BlurFactorY;
 			float _FadeStart;
 			float _FadeEnd;
+			float _MainPass;
+			float _MainFadeStart;
+			float _MainFadeEnd;
 			v2f vert(appdata v)
 			{
 				v2f o;
@@ -101,6 +112,10 @@ Shader "InGameTerminal/VT320 Fancy 2"
 			{
 				float2 uv = i.uv;
 				fixed4 col;
+
+				if (_MainPass < 0.5) {
+					return float4(0,0,0,1);
+				}
 
 				if (_PassThrough > 0.5)
 				{
@@ -314,6 +329,11 @@ Shader "InGameTerminal/VT320 Fancy 2"
 				// 	color_ret.b = 1.0;
 				// }
 				//color_ret += colorFloor;
+
+				float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_MainFadeStart)/(_MainFadeEnd - _MainFadeStart));
+				
+				color_ret *= (1.0 - fadeOff);
+
 				color_ret.a = 1.0;
 				//color_ret = max(color_ret, colorFloor);
 				return color_ret;
@@ -321,7 +341,198 @@ Shader "InGameTerminal/VT320 Fancy 2"
 			ENDCG
 		}
 
-		// Glow
+		// Blur Pass
+		Blend One One
+
+		Pass
+		{
+			CGPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+			
+			#include "UnityCG.cginc"
+			#include "common.hlsl"
+			
+			float _RoundnessAspect;
+			struct appdata
+			{
+				float4 vertex : POSITION;
+				float2 uv : TEXCOORD0;
+				float4 color : COLOR;
+			};
+			
+			struct v2f
+			{
+				float4 vertex : SV_POSITION;
+				float2 uv : TEXCOORD0;
+				float4 color : COLOR;
+				float2 screenPos : TEXCOORD1;
+			};
+			
+			sampler2D _MainTex;
+			float4 _MainTex_ST;
+			float4 _MainTex_TexelSize; // x=1/width, y=1/height, z=width, w=height
+			fixed4 _Color;
+			float _PixelSnap;
+			float _MinPixelSize;
+			float _ScanlineGap;
+			float _PixelRoundness;
+			float _VerticalSpan;
+			float _PassThrough;
+			float _Threshold;
+			float _RoundnessType;
+			float _BlurFactorX;
+			float _BlurFactorY;
+			float _FadeStart;
+			float _FadeEnd;
+			float _NeighborFactor;
+			float _BlurPass;
+			float _MainFadeEnd;
+			float _MainFadeStart;
+			v2f vert(appdata v)
+			{
+				v2f o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				
+				// Store screen position before snapping for fragment shader
+				o.screenPos = (o.vertex.xy / o.vertex.w + 1.0) * 0.5 * _ScreenParams.xy;
+				
+				// Pixel snap: round vertex position to nearest screen pixel
+				if (_PixelSnap > 0.5)
+				{
+					// Snap to nearest pixel
+					float2 snappedScreenPos = floor(o.screenPos + 0.5);
+					
+					// Convert back to clip space
+					o.vertex.xy = (snappedScreenPos / _ScreenParams.xy * 2.0 - 1.0) * o.vertex.w;
+				}
+				
+				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				o.color = v.color * _Color;
+				return o;
+			}
+			
+			fixed4 frag(v2f i) : SV_Target
+			{
+				if (_BlurPass < 0.5) {
+					discard; return float4(0,0,0,0);
+				}
+				float2 uv = i.uv;
+				fixed4 col;
+				
+				col = tex2D(_MainTex, uv);
+
+				// Calculate UV derivatives to understand texel-to-pixel mapping
+				float2 uvDdx = ddx(uv);
+				float2 uvDdy = ddy(uv);
+
+					
+				// How much UV changes per screen pixel
+				float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
+				float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
+					
+				// Convert to texels per pixel
+				float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
+				float texelsPerPixelY = uvPerPixelY * _MainTex_TexelSize.w;
+
+				float texelsPerPixelMax = max(texelsPerPixelX, texelsPerPixelY);
+
+				fixed4 ret = fixed4(0,0,0,0);
+				// if (texelsPerPixelX > 3.0) {
+				// 	ret.r = 1.0;
+				// } else if (texelsPerPixelX > 2.0) {
+				// 	ret.r = 0.5;
+				// } else if (texelsPerPixelX > 1.0) {
+				// 	ret.r = 0.25;
+				// }
+				//float tX = min(3.0, texelsPerPixelX);
+
+#define GETUVOFFSET(uvdd, k, texPerPix) (uvdd * k / texPerPix)
+//#define GETUVOFFSET(uvdd, k, texPerPix) (uvdd * k)
+#define LIT2(x) LIT(x)
+				float samples = 0.0;
+				fixed4 tmp;
+				for (float k = 1.0; k <= 16; k++) {
+					if (k < texelsPerPixelX) {
+						tmp = tex2D(
+							_MainTex,
+							uv + GETUVOFFSET(uvDdx, k, texelsPerPixelX)
+						);
+						if (LIT2(tmp)) {
+							ret += tmp;
+							samples += 1.0;
+						}
+						tmp = tex2D(
+							_MainTex,
+							uv - GETUVOFFSET(uvDdx, k, texelsPerPixelX)
+						);
+						if (LIT2(tmp)) {
+							ret += tmp;
+							samples += 1.0;
+						}
+					}
+					if (k < texelsPerPixelY) {
+						tmp = tex2D(
+							_MainTex,
+							uv + GETUVOFFSET(uvDdy, k, texelsPerPixelY)
+						);
+						if (LIT2(tmp)) {
+							ret += tmp;
+							samples += 1.0;
+						}
+						tmp = tex2D(
+							_MainTex,
+							uv - GETUVOFFSET(uvDdy, k, texelsPerPixelY)
+						);
+						if (LIT2(tmp)) {
+							ret += tmp;
+							samples += 1.0;
+						}
+					}
+				}
+				if (samples < 1.0) {
+					discard; return float4(0,0,0,0);
+				}
+				ret /= samples;
+				ret.a = 1;
+				// if (texelsPerPixelY > 3.0) {
+				// 	ret.b = 1.0;
+				// } else if (texelsPerPixelY > 2.0) {
+				// 	ret.b = 0.5;
+				// } else if (texelsPerPixelY > 1.0) {
+				// 	ret.b = 0.25;
+				// }
+
+				//float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_FadeStart)/(_FadeEnd - _FadeStart));
+				float mainFadeOff = smoothstep(0, 1, (texelsPerPixelMax-_MainFadeStart)/(_MainFadeEnd - _MainFadeStart));
+				// float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_FadeStart)/(_FadeEnd - _FadeStart));
+				
+
+				ret *= i.color * mainFadeOff;
+				return ret;
+
+				fixed4 colorFloor = float4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
+				
+
+				// Calculate position within the current texel (0 to 1)
+				// For vertical span > 1, group multiple texels together
+				float2 texelCoord = uv * float2(_MainTex_TexelSize.z, _MainTex_TexelSize.w);
+				float2 texelPos = frac(texelCoord);
+				
+
+				
+				fixed4 neighborCol = tex2D(_MainTex, uv + float2(uvDdx.x, uvDdy.y)*_NeighborFactor*texelsPerPixelMax);
+
+				col = (col + neighborCol) * 0.5;
+				col.a = 1;
+				return col * i.color;
+
+			}
+			ENDCG
+		}
+
+
+		// Fade
 		Pass
 		{
 			// blend multiply
@@ -338,6 +549,7 @@ Shader "InGameTerminal/VT320 Fancy 2"
 			float _FadeStart;
 			float _FadeEnd;
 			fixed4 _Color;
+			float _FadePass;
 			
 			struct appdata_blur
 			{
@@ -363,7 +575,9 @@ Shader "InGameTerminal/VT320 Fancy 2"
 
 			float4 frag_blur_h (v2f_blur i) : SV_Target
 			{
-
+				if (_FadePass < 0.5) {
+					discard; return fixed4(1,1,1,1);
+				}
 				float4 col = tex2D(_MainTex, i.uv);
 					
 				// Calculate UV derivatives to understand texel-to-pixel mapping
@@ -388,291 +602,215 @@ Shader "InGameTerminal/VT320 Fancy 2"
 				float4 fadeRet = float4(1,1,1,1) * (1.0-fadeOff);
 				fadeRet.a = 1;
 				return fadeRet;
-
-				// --- sample horizontally across coverage width (max 8 taps) ---
-				
-				//taps = clamp(taps, 1, 8);
-				//return float4(texelsPerPixelMax/_FadeEnd,0,texelsPerPixelMax/_FadeStart,1);
-				//taps = smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax*10);
-				
-				if (texelsPerPixelMax < _FadeStart) {
-					//return float4((taps - _FadeStart)/(_FadeEnd - _FadeStart),0,0,1);
-					//return float4(1,0,0,1);
-					discard; return float4(0,0,0,0);
-				}
-				//return float4(0,0,1,1);
-
-				int taps = (int)ceil(texelsPerPixelMax);     // how many texels wide this pixel spans
-
-				float2 texelUV = _MainTex_TexelSize.xy;
-
-				// Span should cover +/- half the width in texels
-				float halfWidth = 0.5 * texelsPerPixelX;
-
-				// Avoid div-by-zero for tiny widths
-				halfWidth = max(halfWidth, 0.5);
-
-				float4 accum = 0;
-				float weightSum = 0;
-				float4 ret = float4(0,0,0,0);
-				// [unroll]
-				// for (int k = 4; k <= 4; k++)
-				// {
-				// 	//if (k >= taps) break;
-				// 	if (k < -taps || k > taps) {
-				// 		continue;
-				// 	}
-
-				// 	// Map k in [0..taps-1] to position in [-halfWidth .. +halfWidth]
-				// 	float t = (taps == 1) ? 0.0 : (k / (float)(taps - 1));
-				// 	float offsetTexels = lerp(-halfWidth, +halfWidth, t);
-
-				// 	float2 uvS = i.uv + float2(offsetTexels * texelUV.x, 0);
-				// 	ret = max(ret, tex2D(_MainTex, uvS));
-				// 	uvS = i.uv + float2(0, offsetTexels * texelUV.y);
-				// 	ret = max(ret, tex2D(_MainTex, uvS));
-				// 	//ret.b = ret.g;
-
-				// 	//float w = 1.0; // (optional) could do a tent/gaussian here
-				// 	//accum += tex2D(_MainTex, uvS) * w;
-				// 	//weightSum += w;
-				// }
-
-				//return ret;
-				// if (col.r > ret.r || col.g > ret.g || col.b > ret.b) {
-				// 	ret = (ret - col) * (taps/8.0);
-				// }
-
-				[unroll]
-				for (int k = -2; k <= 2; k++) {
-					for (int j = -1; j <= 1; j++) {
-						// Map k in [0..taps-1] to position in [-halfWidth .. +halfWidth]
-						float offsetX = (k / 1.0) * halfWidth;
-						float offsetY = (j / 1.0) * halfWidth;
-						float2 uvS = i.uv + float2(offsetX * texelUV.x, offsetY * texelUV.y);
-						//ret = max(ret, tex2D(_MainTex, uvS));
-						ret += tex2D(_MainTex, uvS);
-					}
-				}
-
-				//ret /= 9.0;
-
-				ret *= fadeOff;
-
-				ret = min(ret, _Color/3);
-				
-				ret.a = 1;
-
-				//float4 filtered = accum / max(weightSum, 1e-6);
-
-				return ret;
 			}
 			ENDCG
 		}
 
-		// // horizontal Gaussian blur
-		// Pass
-		// {
-		// 	// blend add 
-		// 	Blend One One
-		// 	CGPROGRAM
-		// 	#pragma vertex vert_blur
-		// 	#pragma fragment frag_blur_h
+		// horizontal Gaussian blur
+		Pass
+		{
+			// blend add 
+			Blend One One
+			CGPROGRAM
+			#pragma vertex vert_blur
+			#pragma fragment frag_blur_h
 			
-		// 	#include "UnityCG.cginc"
-		// 	#include "common.hlsl"
+			#include "UnityCG.cginc"
+			#include "common.hlsl"
 			
-		// 	sampler2D _MainTex;
-		// 	float4 _MainTex_TexelSize;
-		// 	float _BlurFactorX;
-		// 	float _Threshold;
-		// 	float _MaxTexelCheck;
+			sampler2D _MainTex;
+			float4 _MainTex_TexelSize;
+			float _BlurFactorX;
+			float _Threshold;
+			float _MaxTexelCheck;
+			float _GaussXPass;
 			
-		// 	struct appdata_blur
-		// 	{
-		// 		float4 vertex : POSITION;
-		// 		float2 uv : TEXCOORD0;
-		// 	};
+			struct appdata_blur
+			{
+				float4 vertex : POSITION;
+				float2 uv : TEXCOORD0;
+			};
 			
-		// 	struct v2f_blur
-		// 	{
-		// 		float4 vertex : SV_POSITION;
-		// 		float2 uv : TEXCOORD0;
-		// 		float3 worldPos : TEXCOORD1;
-		// 	};
+			struct v2f_blur
+			{
+				float4 vertex : SV_POSITION;
+				float2 uv : TEXCOORD0;
+				float3 worldPos : TEXCOORD1;
+			};
 			
-		// 	v2f_blur vert_blur(appdata_blur v)
-		// 	{
-		// 		v2f_blur o;
-		// 		o.vertex = UnityObjectToClipPos(v.vertex);
-		// 		o.uv = v.uv;
-		// 		o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-		// 		return o;
-		// 	}
+			v2f_blur vert_blur(appdata_blur v)
+			{
+				v2f_blur o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.uv = v.uv;
+				o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+				return o;
+			}
 			
-		// 	// 9-tap Gaussian weights (approx sigma ~ 2.0)
-		// 	static const float w0 = 0.2270270270; // center
-		// 	static const float w1 = 0.1945945946;
-		// 	static const float w2 = 0.1216216216;
-		// 	static const float w3 = 0.0540540541;
-		// 	static const float w4 = 0.0162162162;
+			// 9-tap Gaussian weights (approx sigma ~ 2.0)
+			static const float w0 = 0.2270270270; // center
+			static const float w1 = 0.1945945946;
+			static const float w2 = 0.1216216216;
+			static const float w3 = 0.0540540541;
+			static const float w4 = 0.0162162162;
 			
-		// 	float4 Blur1D(float2 uv, float2 dir, float amount)
-		// 	{
-		// 		float2 stepUV = dir * _MainTex_TexelSize.xy * amount;
+			float4 Blur1D(float2 uv, float2 dir, float amount)
+			{
+				float2 stepUV = dir * _MainTex_TexelSize.xy * amount;
 				
-		// 		float4 c = tex2D(_MainTex, uv) * w0;
-		// 		c += tex2D(_MainTex, uv + stepUV * 1.0) * w1;
-		// 		c += tex2D(_MainTex, uv - stepUV * 1.0) * w1;
-		// 		c += tex2D(_MainTex, uv + stepUV * 2.0) * w2;
-		// 		c += tex2D(_MainTex, uv - stepUV * 2.0) * w2;
-		// 		c += tex2D(_MainTex, uv + stepUV * 3.0) * w3;
-		// 		c += tex2D(_MainTex, uv - stepUV * 3.0) * w3;
-		// 		c += tex2D(_MainTex, uv + stepUV * 4.0) * w4;
-		// 		c += tex2D(_MainTex, uv - stepUV * 4.0) * w4;
+				float4 c = tex2D(_MainTex, uv) * w0;
+				c += tex2D(_MainTex, uv + stepUV * 1.0) * w1;
+				c += tex2D(_MainTex, uv - stepUV * 1.0) * w1;
+				c += tex2D(_MainTex, uv + stepUV * 2.0) * w2;
+				c += tex2D(_MainTex, uv - stepUV * 2.0) * w2;
+				c += tex2D(_MainTex, uv + stepUV * 3.0) * w3;
+				c += tex2D(_MainTex, uv - stepUV * 3.0) * w3;
+				c += tex2D(_MainTex, uv + stepUV * 4.0) * w4;
+				c += tex2D(_MainTex, uv - stepUV * 4.0) * w4;
 				
-		// 		return c;
-		// 	}
+				return c;
+			}
 
-		// 	float4 frag_blur_h (v2f_blur i) : SV_Target
-		// 	{
-		// 		if (_BlurFactorX < 0.1)
-		// 		{
-		// 			discard;return float4(0,0,0,0);
-		// 		}
+			float4 frag_blur_h (v2f_blur i) : SV_Target
+			{
+				if (_GaussXPass < 0.5 || _BlurFactorX < 0.1)
+				{
+					discard;return float4(0,0,0,0);
+				}
 
-		// 		float4 col = tex2D(_MainTex, i.uv);
-		// 		if (col.r > 0 || col.r > 0 || col.g > 0) {
-		// 			discard; return float4(0,0,0,0);
-		// 		}
-		// 		// if (col.r + col.g + col.b < .03 || _BlurFactor < .01)
-		// 		// {
-		// 		// 	discard;return float4(0,0,0,0);
-		// 		// }
+				float4 col = tex2D(_MainTex, i.uv);
+				if (col.r > 0 || col.r > 0 || col.g > 0) {
+					discard; return float4(0,0,0,0);
+				}
+				// if (col.r + col.g + col.b < .03 || _BlurFactor < .01)
+				// {
+				// 	discard;return float4(0,0,0,0);
+				// }
 					
-		// 		// Calculate UV derivatives to understand texel-to-pixel mapping
-		// 		float2 uvDdx = ddx(i.uv);
-		// 		float2 uvDdy = ddy(i.uv);
+				// Calculate UV derivatives to understand texel-to-pixel mapping
+				float2 uvDdx = ddx(i.uv);
+				float2 uvDdy = ddy(i.uv);
 
-		// 		// How much UV changes per screen pixel
-		// 		float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
-		// 		float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
+				// How much UV changes per screen pixel
+				float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
+				float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
 
-		// 		// Convert to texels per pixel
-		// 		//float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
-		// 		float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
-		// 		texelsPerPixelX = abs(texelsPerPixelX);
-		// 		//return float4(1,0,1,1);
-		// 		float maxTexelCheck = _MaxTexelCheck;
-		// 		float texelsCheck = smoothstep(1, maxTexelCheck, texelsPerPixelX);
-		// 		// sample all texels
-		// 		return float4(texelsCheck/maxTexelCheck,0,0,1);
-		// 		for (float x = -texelsCheck; x <= texelsCheck; x += 1.0)
-		// 		{
-		// 			float2 offsetUV = i.uv + float2(x * _MainTex_TexelSize.x, 0);
-		// 			float4 sampleCol = tex2D(_MainTex, offsetUV);
-		// 			col = max(col, sampleCol);
-		// 		}
-		// 		return col;
+				// Convert to texels per pixel
+				//float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
+				float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
+				texelsPerPixelX = abs(texelsPerPixelX);
+				//return float4(1,0,1,1);
+				float maxTexelCheck = _MaxTexelCheck;
+				float texelsCheck = smoothstep(1, maxTexelCheck, texelsPerPixelX);
+				// sample all texels
+				//return float4(texelsCheck/maxTexelCheck,0,0,1);
+				for (float x = -texelsCheck; x <= texelsCheck; x += 1.0)
+				{
+					float2 offsetUV = i.uv + float2(x * _MainTex_TexelSize.x, 0);
+					float4 sampleCol = tex2D(_MainTex, offsetUV);
+					col = max(col, sampleCol);
+				}
+				return col;
 
-		// 		GAUSS(texelsPerPixelX, float2(1,0), _BlurFactorX);
+				GAUSS(texelsPerPixelX, float2(1,0), _BlurFactorX);
 
-		// 		discard;return float4(0,0,0,0);
-		// 	}
-		// 	ENDCG
-		// }
+				discard;return float4(0,0,0,0);
+			}
+			ENDCG
+		}
 
-		// // vertical Gaussian blur
-		// Pass
-		// {
-		// 	Blend One One
-		// 	CGPROGRAM
-		// 	#pragma vertex vert_blur
-		// 	#pragma fragment frag_blur_v
+		// vertical Gaussian blur
+		Pass
+		{
+			Blend One One
+			CGPROGRAM
+			#pragma vertex vert_blur
+			#pragma fragment frag_blur_v
 			
-		// 	#include "UnityCG.cginc"
-		// 	#include "common.hlsl"
+			#include "UnityCG.cginc"
+			#include "common.hlsl"
 			
-		// 	sampler2D _MainTex;
-		// 	float4 _MainTex_TexelSize;
-		// 	float _BlurFactorY;
-		// 	float _Threshold;
+			sampler2D _MainTex;
+			float4 _MainTex_TexelSize;
+			float _BlurFactorY;
+			float _Threshold;
+			float _GaussYPass;
 			
-		// 	struct appdata_blur
-		// 	{
-		// 		float4 vertex : POSITION;
-		// 		float2 uv : TEXCOORD0;
-		// 	};
+			struct appdata_blur
+			{
+				float4 vertex : POSITION;
+				float2 uv : TEXCOORD0;
+			};
 			
-		// 	struct v2f_blur
-		// 	{
-		// 		float4 vertex : SV_POSITION;
-		// 		float2 uv : TEXCOORD0;
-		// 		float3 worldPos : TEXCOORD1;
-		// 	};
+			struct v2f_blur
+			{
+				float4 vertex : SV_POSITION;
+				float2 uv : TEXCOORD0;
+				float3 worldPos : TEXCOORD1;
+			};
 			
-		// 	v2f_blur vert_blur(appdata_blur v)
-		// 	{
-		// 		v2f_blur o;
-		// 		o.vertex = UnityObjectToClipPos(v.vertex);
-		// 		o.uv = v.uv;
-		// 		o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-		// 		return o;
-		// 	}
+			v2f_blur vert_blur(appdata_blur v)
+			{
+				v2f_blur o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.uv = v.uv;
+				o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+				return o;
+			}
 			
-		// 	// 9-tap Gaussian weights (approx sigma ~ 2.0)
-		// 	static const float w0 = 0.2270270270; // center
-		// 	static const float w1 = 0.1945945946;
-		// 	static const float w2 = 0.1216216216;
-		// 	static const float w3 = 0.0540540541;
-		// 	static const float w4 = 0.0162162162;
+			// 9-tap Gaussian weights (approx sigma ~ 2.0)
+			static const float w0 = 0.2270270270; // center
+			static const float w1 = 0.1945945946;
+			static const float w2 = 0.1216216216;
+			static const float w3 = 0.0540540541;
+			static const float w4 = 0.0162162162;
 			
-		// 	float4 Blur1D(float2 uv, float2 dir, float amount)
-		// 	{
-		// 		float2 stepUV = dir * _MainTex_TexelSize.xy * amount;
+			float4 Blur1D(float2 uv, float2 dir, float amount)
+			{
+				float2 stepUV = dir * _MainTex_TexelSize.xy * amount;
 				
-		// 		float4 c = tex2D(_MainTex, uv) * w0;
-		// 		c += tex2D(_MainTex, uv + stepUV * 1.0) * w1;
-		// 		c += tex2D(_MainTex, uv - stepUV * 1.0) * w1;
-		// 		c += tex2D(_MainTex, uv + stepUV * 2.0) * w2;
-		// 		c += tex2D(_MainTex, uv - stepUV * 2.0) * w2;
-		// 		c += tex2D(_MainTex, uv + stepUV * 3.0) * w3;
-		// 		c += tex2D(_MainTex, uv - stepUV * 3.0) * w3;
-		// 		c += tex2D(_MainTex, uv + stepUV * 4.0) * w4;
-		// 		c += tex2D(_MainTex, uv - stepUV * 4.0) * w4;
+				float4 c = tex2D(_MainTex, uv) * w0;
+				c += tex2D(_MainTex, uv + stepUV * 1.0) * w1;
+				c += tex2D(_MainTex, uv - stepUV * 1.0) * w1;
+				c += tex2D(_MainTex, uv + stepUV * 2.0) * w2;
+				c += tex2D(_MainTex, uv - stepUV * 2.0) * w2;
+				c += tex2D(_MainTex, uv + stepUV * 3.0) * w3;
+				c += tex2D(_MainTex, uv - stepUV * 3.0) * w3;
+				c += tex2D(_MainTex, uv + stepUV * 4.0) * w4;
+				c += tex2D(_MainTex, uv - stepUV * 4.0) * w4;
 				
-		// 		return c;
-		// 	}
+				return c;
+			}
 
-		// 	float4 frag_blur_v (v2f_blur i) : SV_Target
-		// 	{
-		// 		if (_BlurFactorY < .1) {
-		// 			discard;
-		// 			return float4(0,0,0,0);
-		// 		}
-		// 		float4 col = tex2D(_MainTex, i.uv);
-		// 		// if (col.r + col.g + col.b < .03 || _BlurFactor < .01)
-		// 		// {
-		// 		// 	discard;return float4(0,0,0,0);
-		// 		// }
+			float4 frag_blur_v (v2f_blur i) : SV_Target
+			{
+				if (_GaussYPass < 0.5 || _BlurFactorY < .1) {
+					discard;
+					return float4(0,0,0,0);
+				}
+				float4 col = tex2D(_MainTex, i.uv);
+				// if (col.r + col.g + col.b < .03 || _BlurFactor < .01)
+				// {
+				// 	discard;return float4(0,0,0,0);
+				// }
 
-		// 		// Calculate UV derivatives to understand texel-to-pixel mapping
-		// 		float2 uvDdx = ddx(i.uv);
-		// 		float2 uvDdy = ddy(i.uv);
+				// Calculate UV derivatives to understand texel-to-pixel mapping
+				float2 uvDdx = ddx(i.uv);
+				float2 uvDdy = ddy(i.uv);
 
-		// 		// How much UV changes per screen pixel
-		// 		float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
-		// 		float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
+				// How much UV changes per screen pixel
+				float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
+				float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
 					
-		// 		// Convert to texels per pixel
-		// 		float texelsPerPixelY = abs(uvPerPixelY * _MainTex_TexelSize.w);
+				// Convert to texels per pixel
+				float texelsPerPixelY = abs(uvPerPixelY * _MainTex_TexelSize.w);
 
-		// 		GAUSS(texelsPerPixelY, float2(0,1), _BlurFactorY);
+				GAUSS(texelsPerPixelY, float2(0,1), _BlurFactorY);
 
-		// 		discard;return float4(0,0,0,0);
-		// 	}
-		// 	ENDCG
-		// }
+				discard;return float4(0,0,0,0);
+			}
+			ENDCG
+		}
 	}
 	
 	Fallback "UI/Default"
