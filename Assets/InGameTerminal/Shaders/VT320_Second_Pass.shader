@@ -105,6 +105,9 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				o.color = v.color * _Color;
+
+				//o.snappedTerminalPixel = floor(o.uv / TERMINAL_PIXEL_DELTA) * TERMINAL_PIXEL_DELTA;
+
 				return o;
 			}
 
@@ -112,6 +115,8 @@ Shader "InGameTerminal/VT320 Second Pass"
 			{
 				float2 uv = i.uv;
 				fixed4 col;
+
+				float2 snappedTerminalPixel = floor(i.uv / TERMINAL_PIXEL_DELTA) * TERMINAL_PIXEL_DELTA;
 
 				if (_MainPass < 0.5) {
 					return fixed4(0,0,0,1);
@@ -164,7 +169,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 				// Calculate position within vertical span group (0 to 1 across _VerticalSpan texels)
 				//float verticalGroupPos = frac(texelCoord.y / _VerticalSpan);
 				float verticalGroupPos = frac(uv.y*24*12);
-
+				float horizontalGroupPos = frac(uv.x*80*15);
 
 				//return fixed4(verticalGroupPos, 0, 0, 1);
 				_ScanlineGap *= (1.0 - smoothstep(0, 1, texelsPerPixelY - 1.0));
@@ -204,112 +209,96 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 					//col.rgb *= dotMask;
 
+					float2 checkDelta = TERMINAL_PIXEL_DELTA;
+					float2 centerOfTerminalPixel = snappedTerminalPixel + checkDelta * 0.5;
+					float2 centerDelta = uv - centerOfTerminalPixel;
+					centerDelta.y /= _RoundnessAspect;
+					float normalizedCenterDist = length(centerDelta / (checkDelta));
+
+					float2 verticalDelta = centerDelta;
+					verticalDelta.x = 0;
+					float normalizedVerticalDist = length(verticalDelta / (checkDelta));
+
+					float2 leftEdge = float2(snappedTerminalPixel.x, centerOfTerminalPixel.y);
+					float2 leftDelta = uv - leftEdge;
+					leftDelta.y /= _RoundnessAspect;
+					float normalizedLeftDist = length(leftDelta / (checkDelta));
+					//normalizedLeftDist = horizontalGroupPos;
+
+					float2 rightEdge = float2(snappedTerminalPixel.x + checkDelta.x, centerOfTerminalPixel.y);
+					float2 rightDelta = uv - rightEdge;
+					rightDelta.y /= _RoundnessAspect;
+					float normalizedRightDist = length(rightDelta / (checkDelta));
+
+					//return fixed4(0, normalizedLeftDist, 0, 1);
+
+
+
+					float2 neighborDelta = checkDelta * 0.4;
+					neighborDelta.y = 0;
+
 					// Round horizontal edges where pixel meets non-pixel (capsule/stadium shape)
 					// Sample neighboring texels to detect horizontal boundaries
-					float2 texelSize = _MainTex_TexelSize.xy;
-					fixed4 leftNeighbor = tex2D(_MainTex, uv - float2(texelSize.x*1.0, 0));
-					fixed4 leftLeftNeighbor = tex2D(_MainTex, uv - float2(texelSize.x*1.5, 0));
-					fixed4 rightNeighbor = tex2D(_MainTex, uv +  float2(texelSize.x*1.0, 0));
-					fixed4 rightRightNeighbor = tex2D(_MainTex, uv + float2(texelSize.x*1.5, 0));
+					fixed4 leftNeighbor = tex2D(_MainTex, leftEdge - float2(neighborDelta.x, 0));
+					//fixed4 leftLeftNeighbor = tex2D(_MainTex, centerOfTerminalPixel - float2(checkDelta.x*1.5, 0));
+					fixed4 rightNeighbor = tex2D(_MainTex, rightEdge +  float2(neighborDelta.x*2, 0));
+					//fixed4 rightRightNeighbor = tex2D(_MainTex, centerOfTerminalPixel + float2(checkDelta.x*1.5, 0));
 
 					// Detect if we're at a left or right edge (current pixel is lit, neighbor is not)
-					float currentBrightness = max(col.r, max(col.g, col.b)) * col.a;
-					float leftBrightness = max(leftNeighbor.r, max(leftNeighbor.g, leftNeighbor.b)) * leftNeighbor.a;
-					float leftLeftBrightness = max(leftLeftNeighbor.r, max(leftLeftNeighbor.g, leftLeftNeighbor.b)) * leftLeftNeighbor.a;
-					float rightBrightness = max(rightNeighbor.r, max(rightNeighbor.g, rightNeighbor.b)) * rightNeighbor.a;
-					float rightRightBrightness = max(rightRightNeighbor.r, max(rightRightNeighbor.g, rightRightNeighbor.b)) * rightRightNeighbor.a;
+					float currentBrightness = max(col.r, max(col.g, col.b));
+					//float leftBrightness = max(leftNeighbor.r, max(leftNeighbor.g, leftNeighbor.b)) * leftNeighbor.a;
+					float leftBrightness = max(leftNeighbor.r, max(leftNeighbor.g, leftNeighbor.b));
+					//float leftLeftBrightness = max(leftLeftNeighbor.r, max(leftLeftNeighbor.g, leftLeftNeighbor.b)) * leftLeftNeighbor.a;
+					//float rightBrightness = max(rightNeighbor.r, max(rightNeighbor.g, rightNeighbor.b)) * rightNeighbor.a;
+					float rightBrightness = max(rightNeighbor.r, max(rightNeighbor.g, rightNeighbor.b));
+					//float rightRightBrightness = max(rightRightNeighbor.r, max(rightRightNeighbor.g, rightRightNeighbor.b)) * rightRightNeighbor.a;
 
 					//col.r = leftNeighbor.g;
 
 					float threshold = 0.01;
-					bool isLeftEdge = (currentBrightness > threshold) && (leftBrightness < threshold);
-					bool isRightEdge = (currentBrightness > threshold) && (rightBrightness < threshold);
 
-					if (_RoundnessType < 1.0)
+					float edgeDist = 0;
+
+					if (leftBrightness < threshold && rightBrightness < threshold)
 					{
-						if (currentBrightness < threshold)
+						if (currentBrightness > threshold)
 						{
-							fixed4 c1 = fixed4(0,0,0,0);
-							fixed4 c2 = fixed4(0,0,0,0);
-							fixed4 c = fixed4(0,0,0,0);
-							float centeredX = texelPos.x * 2.0 - 1.0;
-							if (leftBrightness > threshold)
-							{
-								return fixed4(1,0,0,1);
-								// Left edge: create elliptical shape on left side
-								float2 edgePos = float2(centeredX, centeredY / _RoundnessAspect);
-								float edgeDist = length(edgePos);
-								float edgeMask = 1.0 - smoothstep(edgeStart, 1.0, edgeDist);
-								c1 = edgeMask / max(dotMask, 0.001);
-								c += c1;
-								c.a += 1.0;
-							}
-
-							if (rightBrightness > threshold)
-							{
-								return fixed4(0,1,1,1);
-								// Right edge: create elliptical shape on right side
-								float2 edgePos = float2(centeredX, centeredY / _RoundnessAspect);
-								float edgeDist = length(edgePos);
-								float edgeMask = 1.0 - smoothstep(edgeStart, 1.0, edgeDist);
-								c2 = edgeMask / max(dotMask, 0.001);
-								c += c2;
-								c.a += 1.0;
-							}
-							if (c.a > 0)
-							{
-								c /= c.a;
-								col.rgb *= c;
-							}
+							//return fixed4(0, 1.0 - normalizedCenterDist, 0, 1);
+							//return fixed4(0,1,0,1);
+							edgeDist = normalizedCenterDist;
+							// // create a lone circle
+							// float2 checkVector =
+							// float edgeDist = length(edgePos);
+							// float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
+							// col.rgb *= edgeMask / (max(dotMask, 0.001));
 						}
-
 					}
-					else
-					{
-						// Convert horizontal texel position to -1 to 1 range
-						float centeredX = texelPos.x * 2.0 - 1.0;
 
-						if (leftBrightness < threshold && rightBrightness < threshold)
-						{
-							if (currentBrightness > threshold)
-							{
-								// create a lone circle
-								float2 edgePos = float2(centeredX, centeredY / _RoundnessAspect);
-								float edgeDist = length(edgePos);
-								float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
-								col.rgb *= edgeMask / (max(dotMask, 0.001));
+					if (currentBrightness > threshold) {
+						if (leftBrightness > threshold) {
+							if (rightBrightness > threshold) {
+								//return fixed4(0, 1.0 - normalizedVerticalDist, 0, 1);
+								edgeDist = normalizedVerticalDist;
 							}
-						}
-
-						if (leftBrightness > threshold && rightBrightness > threshold)
-						{
-							float2 edgePos = float2(0, centeredY / _RoundnessAspect);
-							float edgeDist = length(edgePos);
-							float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
-
-							col.rgb *= edgeMask / (max(dotMask, 0.001));
-						}
-						else
-						{
-							//return fixed4(texelPos.x, texelPos.y, 0, 1);
-
-							if (leftBrightness > threshold)
-							{
-								float2 edgePos = float2(texelPos.x, centeredY / _RoundnessAspect);
-								float edgeDist = length(edgePos);
-								float edgeMask = 1.0 - smoothstep(0, 0.99, edgeDist);
-
-								col.rgb *= edgeMask / (max(dotMask, 0.001));
+							else {
+								edgeDist = normalizedLeftDist;
 							}
-							if (rightBrightness > threshold)
-							{
-								float2 edgePos = float2(1-texelPos.x, centeredY / _RoundnessAspect);
-								float edgeDist = length(edgePos);
-								float edgeMask = 1.0 - smoothstep(0, 0.99, edgeDist);
-								col.rgb *= edgeMask / max(dotMask, 0.001);
-							}
+							//return fixed4(0, 1.0 - normalizedLeftDist, 0, 1);
 						}
-
+						else if (rightBrightness > threshold) {
+							edgeDist = normalizedRightDist;
+						}
+						else {
+							// edgeDist = normalizedCenterDist;
+							// edgeDist.x *= 2.0;
+							float2 dotDelta = centerDelta;
+							dotDelta.x *= 2.0;
+							edgeDist = length(dotDelta / (checkDelta));
+						}
+						//return fixed4(0, 1.0 - normalizedRightDist, 0, 1);
+						//float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
+						//col.rgb *= edgeMask / (max(dotMask, 0.001));
+						col.rgb *= (1.0-edgeDist);
 					}
 				}
 

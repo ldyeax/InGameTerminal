@@ -1,3 +1,5 @@
+#define GRID_DELTA (float2(1.0/80.0,1.0/24.0))
+#define TERMINAL_PIXEL_DELTA (GRID_DELTA*float2(1.0/15.0, 1.0/12.0))
 #define THRESHOLD(c) { if (c.r>_Threshold) c.r=1.0; if (c.g>_Threshold) c.g=1.0; if (c.b>_Threshold) c.b=1.0; }
 #define CHECKMAX(c) { if (c.r>1.0) c.r=1.0; if (c.g>1.0) c.g=1.0; if (c.b>1.0) c.b=1.0; }
 /*

@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: HiPostProcessTestRenderTexture
+  m_Name: Hi2PostProcessTestRenderTexture
   m_Shader: {fileID: 4800000, guid: fba250cf83208f84c8e85ec75cc2843e, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -29,7 +29,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 8400000, guid: 024491233f5da31489b1d6d7ddd42f12, type: 2}
+        m_Texture: {fileID: 8400000, guid: c2ecbf0f08c49184782182017da280e9, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -44,7 +44,7 @@ Material:
     - _DistanceFactor: 5
     - _FadeEnd: 20
     - _FadePass: 0
-    - _FadeStart: 2
+    - _FadeStart: 1
     - _GaussXPass: 0
     - _GaussYPass: 0
     - _Invert: 0
@@ -61,7 +61,7 @@ Material:
     - _PixelRoundness: 1
     - _PixelSnap: 0
     - _Radius: 2
-    - _RoundnessAspect: 0.5
+    - _RoundnessAspect: 0.4
     - _RoundnessType: 2
     - _ScanlineGap: 0
     - _Softness: 0.5

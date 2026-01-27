@@ -183,8 +183,8 @@ Shader "InGameTerminal/VT320 First Pass"
 					if (glyphPos.x < bleedThreshold)
 					{
 						// Calculate UV for the previous character
-						int prevAtlasX = prevAtlasIndex % (int)_AtlasCols;
-						int prevAtlasY = prevAtlasIndex / (int)_AtlasCols;
+						int prevAtlasX = prevAtlasIndex % (uint)_AtlasCols;
+						int prevAtlasY = prevAtlasIndex / (uint)_AtlasCols;
 						
 						// Sample from the right edge of the previous glyph, shifted by italic amount
 						float prevGlyphX = 1.0 - bleedThreshold + glyphPos.x;
@@ -210,8 +210,8 @@ Shader "InGameTerminal/VT320 First Pass"
 					if (glyphPos.x > bleedThreshold)
 					{
 						// Calculate UV for the next character
-						int nextAtlasX = nextAtlasIndex % (int)_AtlasCols;
-						int nextAtlasY = nextAtlasIndex / (int)_AtlasCols;
+						int nextAtlasX = nextAtlasIndex % (uint)_AtlasCols;
+						int nextAtlasY = nextAtlasIndex / (uint)_AtlasCols;
 						
 						// Sample from the left edge of the next glyph, shifted by italic amount
 						float nextGlyphX = glyphPos.x - bleedThreshold;
