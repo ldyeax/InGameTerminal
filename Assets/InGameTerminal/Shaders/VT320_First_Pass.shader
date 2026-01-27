@@ -73,6 +73,8 @@ Shader "InGameTerminal/VT320 First Pass"
 			#define INVERTED_BIT 16
 			#define PREV_ITALIC_BIT 32
 			#define NEXT_ITALIC_BIT 64
+			#define PREV_BOLD_BIT 1
+			#define NEXT_BOLD_BIT 2
 			
 			v2f vert(appdata v)
 			{
@@ -100,10 +102,11 @@ Shader "InGameTerminal/VT320 First Pass"
 			fixed4 frag(v2f i) : SV_Target
 			{
 				// Decode attributes from vertex color channels
-				// R: bitmask, G: previous atlas index, B: next atlas index
+				// R: bitmask, G: previous atlas index, B: next atlas index, A: neighbor bold flags (prev=1, next=2)
 				int attrBits = (int)(i.color.r * 255.0 + 0.5);
 				int prevAtlasIndex = (int)(i.color.g * 255.0 + 0.5);
 				int nextAtlasIndex = (int)(i.color.b * 255.0 + 0.5);
+				int neighborBoldBits = (int)(i.color.a * 255.0 + 0.5);
 				
 				bool isBold = (attrBits & BOLD_BIT) != 0;
 				bool isItalic = (attrBits & ITALIC_BIT) != 0;
@@ -112,6 +115,8 @@ Shader "InGameTerminal/VT320 First Pass"
 				bool isInverted = (attrBits & INVERTED_BIT) != 0;
 				bool isPrevItalic = (attrBits & PREV_ITALIC_BIT) != 0;
 				bool isNextItalic = (attrBits & NEXT_ITALIC_BIT) != 0;
+				bool isPrevBold = (neighborBoldBits & PREV_BOLD_BIT) != 0;
+				bool isNextBold = (neighborBoldBits & NEXT_BOLD_BIT) != 0;
 				
 				// Position within the glyph (0 to 1)
 				float2 glyphPos = frac(i.uv * float2(_AtlasCols, _AtlasRows));
@@ -121,7 +126,9 @@ Shader "InGameTerminal/VT320 First Pass"
 				float rowInGlyph = (1.0 - glyphPos.y) * _GlyphHeight;
 				
 				float2 uv = i.uv;
-				fixed4 col = fixed4(0,0,0,0);
+				fixed4 baseCol = fixed4(0,0,0,0);
+				fixed4 prevBleedCol = fixed4(0,0,0,0);
+				fixed4 nextBleedCol = fixed4(0,0,0,0);
 				float2 uvUnit = float2(1.0/(_GlyphWidth*_AtlasCols), 0);
 				float divisions = 12.0;
 				
@@ -165,12 +172,12 @@ Shader "InGameTerminal/VT320 First Pass"
 
 				if (skipFromItalic)
 				{
-					col = fixed4(0,0,0,1);
+					baseCol = fixed4(0,0,0,1);
 				}
 				else
 				{
 					// Sample the texture atlas
-					col = tex2D(_MainTex, uv);
+					baseCol = tex2D(_MainTex, uv);
 				}
 				
 				// 2. Handle previous italic character bleeding into this cell
@@ -194,9 +201,7 @@ Shader "InGameTerminal/VT320 First Pass"
 						prevUV.y = 1.0 - prevUV.y; // Flip Y for atlas
 						
 						fixed4 prevCol = tex2D(_MainTex, prevUV);
-						// OR the pixels together (max blend)
-						col = max(col, prevCol);
-						//col.b = 1;
+						prevBleedCol = max(prevBleedCol, prevCol);
 					}
 				}
 				
@@ -221,16 +226,16 @@ Shader "InGameTerminal/VT320 First Pass"
 						nextUV.y = 1.0 - nextUV.y; // Flip Y for atlas
 						
 						fixed4 nextCol = tex2D(_MainTex, nextUV);
-						// OR the pixels together (max blend)
-						col = max(col, nextCol);
-						//col.r = 1;
+						nextBleedCol = max(nextBleedCol, nextCol);
 					}
 				}
 				
 				glyphPos = frac(uv * float2(_AtlasCols, _AtlasRows));
 
 				// Apply tint color
-				col *= _Color;
+				baseCol *= _Color;
+				prevBleedCol *= _Color;
+				nextBleedCol *= _Color;
 				
 				// 4. UNDERLINE - force a specific row to be lit
 				// The underline row is near the bottom of the cell
@@ -240,19 +245,35 @@ Shader "InGameTerminal/VT320 First Pass"
 					if (rowPixel >= _UnderlineRow && rowPixel < _UnderlineRow + 1.0)
 					{
 						// Force this row to be fully lit (white)
-						col.rgb = _Color.rgb;
-						col.a = 1.0;
+						baseCol.rgb = _Color.rgb;
+						baseCol.a = 1.0;
 					}
 				}
 
 				// 5. BOLD - maximize lit pixel intensities
 				if (isBold)
 				{
-					if (col.r > 0) col.r = 1.0;
-					if (col.g > 0) col.g = 1.0;
-					if (col.b > 0) col.b = 1.0;
-					if (col.a > 0) col.a = 1.0;
+					if (baseCol.r > 0) baseCol.r = 1.0;
+					if (baseCol.g > 0) baseCol.g = 1.0;
+					if (baseCol.b > 0) baseCol.b = 1.0;
+					if (baseCol.a > 0) baseCol.a = 1.0;
 				}
+				if (isPrevItalic && isPrevBold)
+				{
+					if (prevBleedCol.r > 0) prevBleedCol.r = 1.0;
+					if (prevBleedCol.g > 0) prevBleedCol.g = 1.0;
+					if (prevBleedCol.b > 0) prevBleedCol.b = 1.0;
+					if (prevBleedCol.a > 0) prevBleedCol.a = 1.0;
+				}
+				if (isNextItalic && isNextBold)
+				{
+					if (nextBleedCol.r > 0) nextBleedCol.r = 1.0;
+					if (nextBleedCol.g > 0) nextBleedCol.g = 1.0;
+					if (nextBleedCol.b > 0) nextBleedCol.b = 1.0;
+					if (nextBleedCol.a > 0) nextBleedCol.a = 1.0;
+				}
+
+				fixed4 col = max(baseCol, max(prevBleedCol, nextBleedCol));
 
 				// 6. INVERT - flip pixel values
 				// Happens after all other attribute processing

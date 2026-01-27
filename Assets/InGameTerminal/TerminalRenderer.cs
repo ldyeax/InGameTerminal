@@ -235,6 +235,7 @@ namespace InGameTerminal
 		}
 		// Previous column atlas index goes in green, next column atlas index goes in blue
 		// This allows shaders to do smooth scrolling effects and italic shearing
+		// Alpha channel low bits are used for neighbor bold flags (prev=bit0, next=bit1).
 		private void UpdatePreviousAndNextVertexColors(int id, bool useMesh = false)
 		{
 			var spaceXY = _terminalDefinition.CharToXY(' ');
@@ -270,11 +271,32 @@ namespace InGameTerminal
 							ref var terminalBuffer = ref terminalState.terminalBuffer;
 							nextItalic = terminalBuffer[x + 1, y].TextAttributes.Italic;
 						}
+						bool previousBold = false;
+						if (x > 0)
+						{
+							ref var terminalBuffer = ref terminalState.terminalBuffer;
+							previousBold = terminalBuffer[x - 1, y].TextAttributes.Bold;
+						}
+						bool nextBold = false;
+						if (x < terminal.Width - 1)
+						{
+							ref var terminalBuffer = ref terminalState.terminalBuffer;
+							nextBold = terminalBuffer[x + 1, y].TextAttributes.Bold;
+						}
 						Color32 baseColor = textAttributes.AttributesToVertexColor32();
 						byte r = baseColor.r;
 						byte g = (byte)(previousAtlasIndex & 0xFF);
 						byte b = (byte)(nextAtlasIndex & 0xFF);
-						byte a = baseColor.a;
+						byte neighborBoldBits = 0;
+						if (previousBold)
+						{
+							neighborBoldBits |= 1;
+						}
+						if (nextBold)
+						{
+							neighborBoldBits |= 2;
+						}
+						byte a = (byte)((baseColor.a & 0xFC) | neighborBoldBits);
 						Color32 updatedColor = new Color32(r, g, b, a);
 						// Update colors for the quad
 						colors[vertexIndex + 0] = updatedColor;
