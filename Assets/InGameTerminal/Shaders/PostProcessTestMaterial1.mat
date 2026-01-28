@@ -13,10 +13,8 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords:
-  - _BLURPASS_ON
-  - _FADEPASS_ON
   - _HIDESINGLEPIXEL_ON
-  - _MAINPASS_ON
+  - _PHOSPHORPASS_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -72,7 +70,7 @@ Material:
     - _BaseRadius: 0
     - _BlurFactorX: 1
     - _BlurFactorY: 1
-    - _BlurPass: 1
+    - _BlurPass: 0
     - _BumpScale: 1
     - _ColorMask: 15
     - _Cutoff: 0.5
@@ -81,7 +79,7 @@ Material:
     - _DistanceFactor: 3.11
     - _DstBlend: 0
     - _FadeEnd: 15
-    - _FadePass: 1
+    - _FadePass: 0
     - _FadeStart: 3
     - _FwidthFactor: 0
     - _GaussXPass: 0
@@ -90,9 +88,10 @@ Material:
     - _Glossiness: 0.5
     - _GlossyReflections: 1
     - _HideSinglePixel: 1
+    - _InvertUV: 0
     - _MainFadeEnd: 3
     - _MainFadeStart: 1
-    - _MainPass: 1
+    - _MainPass: 0
     - _MaxRadius: 32
     - _MaxTexelCheck: 3
     - _Metallic: 0
@@ -103,6 +102,7 @@ Material:
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _PassThrough: 0
+    - _PhosphorPass: 1
     - _PixelRoundness: 1
     - _PixelSnap: 0
     - _Quality: 1
@@ -127,6 +127,6 @@ Material:
     - _YOffset: 0
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 0, g: 1, b: 0, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []

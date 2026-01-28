@@ -19,6 +19,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 	_MainFadeEnd ("Main Fade End", Range(0, 100)) = 5
 	_NeighborFactor ("Neighbor Factor", Range(0, 5)) = 0.5
 	[Toggle] _MainPass ("Enable Main Pass", Float) = 1
+	[Toggle] _PhosphorPass ("Enable Phosphor Pass", Float) = 1
 	[Toggle] _BlurPass ("Enable Blur Pass", Float) = 0
 	[Toggle] _FadePass ("Enable Fade Pass", Float) = 1
 	[Toggle] _GaussXPass ("Enable Gaussian X Pass", Float) = 0
@@ -138,6 +139,8 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 				col = tex2D(_MainTex, uv);
 
+				float startRed = col.r;
+
 				// Calculate UV derivatives to understand texel-to-pixel mapping
 				float2 uvDdx = ddx(uv);
 				float2 uvDdy = ddy(uv);
@@ -152,7 +155,260 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 				float texelsPerPixelMax = max(texelsPerPixelX, texelsPerPixelY);
 
-				fixed4 colorFloor = fixed4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
+				// Calculate position within the current texel (0 to 1)
+				// For vertical span > 1, group multiple texels together
+				float2 texelCoord = uv * float2(_MainTex_TexelSize.z, _MainTex_TexelSize.w);
+				float2 texelPos = frac(texelCoord);
+
+				float verticalGroupPos = frac(uv.y*24*12);
+				float horizontalGroupPos = frac(uv.x*80*15);
+
+				//return fixed4(verticalGroupPos, 0, 0, 1);
+				_ScanlineGap *= (1.0 - smoothstep(0, 1, texelsPerPixelY - 1.0));
+				// Apply vertical-only pixel rounding (horizontal scanline style)
+				// This creates continuous horizontal lines while keeping vertical dot separation
+				float scanlineMask = smoothstep(0.0, 1-_ScanlineGap, abs(0.5-verticalGroupPos)*2.0);
+
+				// // Apply scanline gap effect
+				if (_ScanlineGap > 0.0)
+				{
+					// Darken the gap area
+					col.rgb *= (1.0 - scanlineMask);
+				}
+
+				if (_PixelRoundness > 0.001)
+				{
+					// if (col.b > 0) {
+					// 	return fixed4(0,0,0,0);
+					// }
+					// Only use vertical position for the dot effect
+					// Convert vertical group position to -1 to 1 range (center at 0)
+					float centeredY = verticalGroupPos * 2.0 - 1.0;
+
+					// Calculate elliptical distance from vertical center
+					// Scale Y by aspect ratio to create oval shape
+					float scaledY = centeredY / _RoundnessAspect;
+					float dist = abs(scaledY);
+
+					// Create vertical falloff (rounded top and bottom, but continuous horizontally)
+					//float edgeStart = 1.0 - _PixelRoundness * 0.5;
+					float edgeStart = (1.0)- _PixelRoundness;
+					float dotMask = (1.0) - smoothstep(edgeStart, 1.0, dist);
+
+					//col.rgb *= dotMask;
+
+					float2 checkDelta = TERMINAL_PIXEL_DELTA;
+					float2 centerOfTerminalPixel = snappedTerminalPixel + checkDelta * 0.5;
+					float2 centerDelta = uv - centerOfTerminalPixel;
+					centerDelta.y /= _RoundnessAspect;
+					float normalizedCenterDist = length(centerDelta / (checkDelta));
+
+					float2 verticalDelta = centerDelta;
+					verticalDelta.x = 0;
+					float normalizedVerticalDist = length(verticalDelta / (checkDelta));
+
+					float2 leftEdge = float2(snappedTerminalPixel.x, centerOfTerminalPixel.y);
+					float2 leftDelta = uv - leftEdge;
+					leftDelta.y /= _RoundnessAspect;
+					float normalizedLeftDist = length(leftDelta / (checkDelta));
+					//normalizedLeftDist = horizontalGroupPos;
+
+					float2 rightEdge = float2(snappedTerminalPixel.x + checkDelta.x, centerOfTerminalPixel.y);
+					float2 rightDelta = uv - rightEdge;
+					rightDelta.y /= _RoundnessAspect;
+					float normalizedRightDist = length(rightDelta / (checkDelta));
+
+					//return fixed4(0, normalizedLeftDist, 0, 1);
+
+
+
+					float2 neighborDelta = checkDelta * 0.4;
+					neighborDelta.y = 0;
+
+					// Round horizontal edges where pixel meets non-pixel (capsule/stadium shape)
+					// Sample neighboring texels to detect horizontal boundaries
+					fixed4 leftNeighbor = tex2D(_MainTex, leftEdge - float2(neighborDelta.x, 0));
+					//fixed4 leftLeftNeighbor = tex2D(_MainTex, centerOfTerminalPixel - float2(checkDelta.x*1.5, 0));
+					fixed4 rightNeighbor = tex2D(_MainTex, rightEdge +  float2(neighborDelta.x*2, 0));
+					//fixed4 rightRightNeighbor = tex2D(_MainTex, centerOfTerminalPixel + float2(checkDelta.x*1.5, 0));
+
+					// Detect if we're at a left or right edge (current pixel is lit, neighbor is not)
+					float currentBrightness = col.g;
+					float leftBrightness = leftNeighbor.g;
+					float rightBrightness = rightNeighbor.g;
+
+					float threshold = 1e-5;
+
+					float edgeDist = 0;
+
+					if (leftBrightness < threshold && rightBrightness < threshold)
+					{
+						if (currentBrightness > threshold)
+						{
+							edgeDist = normalizedCenterDist;
+						}
+					}
+
+					if (currentBrightness > threshold) {
+						if (leftBrightness > threshold) {
+							if (rightBrightness > threshold) {
+								edgeDist = normalizedVerticalDist;
+							}
+							else {
+								edgeDist = normalizedLeftDist;
+							}
+						}
+						else if (rightBrightness > threshold) {
+							edgeDist = normalizedRightDist;
+						}
+						else {
+							if (_HideSinglePixel > 0.5) {
+								return fixed4(startRed,0,0,1);
+							}
+							float2 dotDelta = centerDelta;
+							dotDelta.x *= 2.0;
+							edgeDist = length(dotDelta / (checkDelta));
+						}
+						col.rgb *= (1.0-edgeDist);
+					}
+				}
+
+				fixed4 color_ret = col.g * i.color;
+
+				float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_MainFadeStart)/(_MainFadeEnd - _MainFadeStart));
+
+				color_ret *= (1.0 - fadeOff);
+
+				color_ret.a = 1.0;
+				color_ret.r = startRed;
+				return color_ret;
+			}
+			ENDHLSL
+		}
+
+
+		Blend One One
+
+		Pass
+		{
+			HLSLPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "UnityCG.cginc"
+			#include "common.hlsl"
+
+			float _RoundnessAspect;
+			struct appdata
+			{
+				float4 vertex : POSITION;
+				float2 uv : TEXCOORD0;
+				fixed4 color : COLOR;
+			};
+
+			struct v2f
+			{
+				float4 vertex : SV_POSITION;
+				float2 uv : TEXCOORD0;
+				fixed4 color : COLOR;
+				float2 screenPos : TEXCOORD1;
+			};
+
+			sampler2D _MainTex;
+			float4 _MainTex_ST;
+			float4 _MainTex_TexelSize; // x=1/width, y=1/height, z=width, w=height
+			fixed4 _Color;
+			float _PixelSnap;
+
+			float _ScanlineGap;
+			float _PixelRoundness;
+
+			float _PassThrough;
+			float _Threshold;
+
+			float _FadeStart;
+			float _FadeEnd;
+
+			float _MainPass;
+			float _MainFadeStart;
+			float _MainFadeEnd;
+
+			float _HideSinglePixel;
+			float _InvertUV;
+
+			float _PhosphorPass;
+
+			v2f vert(appdata v)
+			{
+				v2f o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+
+				// Store screen position before snapping for fragment shader
+				o.screenPos = (o.vertex.xy / o.vertex.w + 1.0) * 0.5 * _ScreenParams.xy;
+
+				// Pixel snap: round vertex position to nearest screen pixel
+				if (_PixelSnap > 0.5)
+				{
+					// Snap to nearest pixel
+					float2 snappedScreenPos = floor(o.screenPos + 0.5);
+
+					// Convert back to clip space
+					o.vertex.xy = (snappedScreenPos / _ScreenParams.xy * 2.0 - 1.0) * o.vertex.w;
+				}
+
+				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+
+				if (_InvertUV > 0.5)
+				{
+					o.uv = float2(1.0 - o.uv.x, 1.0 - o.uv.y);
+				}
+
+				o.color = v.color * _Color;
+
+				//o.snappedTerminalPixel = floor(o.uv / TERMINAL_PIXEL_DELTA) * TERMINAL_PIXEL_DELTA;
+
+				return o;
+			}
+
+			fixed4 frag(v2f i) : SV_Target
+			{
+				float2 uv = i.uv;
+				fixed4 col;
+
+				float2 snappedTerminalPixel = floor(i.uv / TERMINAL_PIXEL_DELTA) * TERMINAL_PIXEL_DELTA;
+
+				if (_PhosphorPass < 0.5) {
+					return fixed4(0,0,0,0);
+				}
+
+				if (_PassThrough > 0.5)
+				{
+					return tex2D(_MainTex, uv) * i.color;
+				}
+
+				col = tex2D(_MainTex, uv);
+
+				// if (col.b < 0.01) {
+				// 	return fixed4(0,0,0,0);
+				// }
+				// bool isFading = true;
+				// if (col.g > 0) {
+				// 	isFading = false;
+				// }
+
+				// Calculate UV derivatives to understand texel-to-pixel mapping
+				float2 uvDdx = ddx(uv);
+				float2 uvDdy = ddy(uv);
+
+				// How much UV changes per screen pixel
+				float uvPerPixelX = length(float2(uvDdx.x, uvDdy.x));
+				float uvPerPixelY = length(float2(uvDdx.y, uvDdy.y));
+
+				// Convert to texels per pixel
+				float texelsPerPixelX = uvPerPixelX * _MainTex_TexelSize.z;
+				float texelsPerPixelY = uvPerPixelY * _MainTex_TexelSize.w;
+
+				float texelsPerPixelMax = max(texelsPerPixelX, texelsPerPixelY);
 
 				// Calculate position within the current texel (0 to 1)
 				// For vertical span > 1, group multiple texels together
@@ -224,99 +480,106 @@ Shader "InGameTerminal/VT320 Second Pass"
 					// Round horizontal edges where pixel meets non-pixel (capsule/stadium shape)
 					// Sample neighboring texels to detect horizontal boundaries
 					fixed4 leftNeighbor = tex2D(_MainTex, leftEdge - float2(neighborDelta.x, 0));
-					//fixed4 leftLeftNeighbor = tex2D(_MainTex, centerOfTerminalPixel - float2(checkDelta.x*1.5, 0));
 					fixed4 rightNeighbor = tex2D(_MainTex, rightEdge +  float2(neighborDelta.x*2, 0));
-					//fixed4 rightRightNeighbor = tex2D(_MainTex, centerOfTerminalPixel + float2(checkDelta.x*1.5, 0));
 
-					// Detect if we're at a left or right edge (current pixel is lit, neighbor is not)
-					float currentBrightness = max(col.r, max(col.g, col.b));
-					//float leftBrightness = max(leftNeighbor.r, max(leftNeighbor.g, leftNeighbor.b)) * leftNeighbor.a;
-					float leftBrightness = max(leftNeighbor.r, max(leftNeighbor.g, leftNeighbor.b));
-					//float leftLeftBrightness = max(leftLeftNeighbor.r, max(leftLeftNeighbor.g, leftLeftNeighbor.b)) * leftLeftNeighbor.a;
-					//float rightBrightness = max(rightNeighbor.r, max(rightNeighbor.g, rightNeighbor.b)) * rightNeighbor.a;
-					float rightBrightness = max(rightNeighbor.r, max(rightNeighbor.g, rightNeighbor.b));
-					//float rightRightBrightness = max(rightRightNeighbor.r, max(rightRightNeighbor.g, rightRightNeighbor.b)) * rightRightNeighbor.a;
+					float threshold = 1e-5;
 
-					//col.r = leftNeighbor.g;
+					float currentBrightness = col.b;
+					float currentBrightness_green = col.g;
+					bool useCurrent = currentBrightness > threshold && currentBrightness_green < threshold;
 
-					float threshold = 0.01;
+					float leftBrightness = leftNeighbor.b;
+					float leftBrightness_green = leftNeighbor.g;
+					float rightBrightness = rightNeighbor.b;
+					float rightBrightness_green = rightNeighbor.g;
+
+					bool isLeftYounger = leftNeighbor.r < col.r;
+					bool isRightYounger = rightNeighbor.r < col.r;
+
+					bool useLeft = leftBrightness > threshold && leftBrightness_green < threshold;
+					bool useRight = rightBrightness > threshold && rightBrightness_green < threshold;
+
+					useLeft = leftBrightness > threshold;
+					useRight = rightBrightness > threshold;
+					useCurrent = currentBrightness > threshold;
+
+					// if (!isFading && currentBrightness_green > threshold) {
+					// 	if (useLeft && useRight) {
+					// 		currentBrightness = (leftBrightness + rightBrightness) * 0.5;
+					// 		isFading = true;
+					// 	}
+					// 	else if (useLeft) {
+					// 		currentBrightness = leftBrightness;
+					// 		isFading = true;
+					// 	}
+					// 	else if (useRight) {
+					// 		currentBrightness = rightBrightness;
+					// 		isFading = true;
+					// 	}
+					// 	if (isFading) {
+					// 		col.b = currentBrightness;
+					// 		col.g = 0;
+					// 	}
+					// }
+
+
 
 					float edgeDist = 0;
 
-					if (leftBrightness < threshold && rightBrightness < threshold)
-					{
-						if (currentBrightness > threshold)
-						{
-							//return fixed4(0, 1.0 - normalizedCenterDist, 0, 1);
-							//return fixed4(0,1,0,1);
-							edgeDist = normalizedCenterDist;
-							// // create a lone circle
-							// float2 checkVector =
-							// float edgeDist = length(edgePos);
-							// float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
-							// col.rgb *= edgeMask / (max(dotMask, 0.001));
-						}
-					}
+					// if (useLeft && useRight)
+					// {
+					// 	if (useCurrent)
+					// 	{
+					// 		edgeDist = normalizedCenterDist;
+					// 	}
+					// }
 
-					if (currentBrightness > threshold) {
-						if (leftBrightness > threshold) {
-							if (rightBrightness > threshold) {
-								//return fixed4(0, 1.0 - normalizedVerticalDist, 0, 1);
+					if (useCurrent) {
+						if (useLeft) {
+							if (useRight) {
 								edgeDist = normalizedVerticalDist;
 							}
 							else {
 								edgeDist = normalizedLeftDist;
 							}
-							//return fixed4(0, 1.0 - normalizedLeftDist, 0, 1);
 						}
-						else if (rightBrightness > threshold) {
+						else if (useRight) {
 							edgeDist = normalizedRightDist;
 						}
 						else {
 							if (_HideSinglePixel > 0.5) {
 								return fixed4(0,0,0,1);
 							}
-							// edgeDist = normalizedCenterDist;
-							// edgeDist.x *= 2.0;
 							float2 dotDelta = centerDelta;
 							dotDelta.x *= 2.0;
 							edgeDist = length(dotDelta / (checkDelta));
 
 						}
-						//return fixed4(0, 1.0 - normalizedRightDist, 0, 1);
-						//float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
-						//col.rgb *= edgeMask / (max(dotMask, 0.001));
 						col.rgb *= (1.0-edgeDist);
 					}
 				}
 
+				return fixed4(0,0,col.b,1);
 
-
-				fixed4 color_ret = col * i.color;
-				// if (color_ret.r >= _Threshold)
-				// {
-				// 	color_ret.r = 1.0;
-				// }
-				// if (color_ret.g >= _Threshold)
-				// {
-				// 	color_ret.g = 1.0;
-				// }
-				// if (color_ret.b >= _Threshold)
-				// {
-				// 	color_ret.b = 1.0;
-				// }
-				//color_ret += colorFloor;
+				fixed4 color_ret = col.b * i.color;
 
 				float fadeOff = smoothstep(0, 1, (texelsPerPixelMax-_MainFadeStart)/(_MainFadeEnd - _MainFadeStart));
 
 				color_ret *= (1.0 - fadeOff);
+				color_ret.r = 0;
+				color_ret.g = 0;
 
-				color_ret.a = 1.0;
+				color_ret.a = color_ret.b;
 				//color_ret = max(color_ret, colorFloor);
+				// if (!isFading) {
+				// 	return fixed4(0,0,0,0);
+				// }
+				//color_ret.r = startRed;
 				return color_ret;
 			}
 			ENDHLSL
 		}
+
 
 		// Blur Pass
 		Blend One One
