@@ -14,7 +14,7 @@ Material:
   m_ValidKeywords: []
   m_InvalidKeywords:
   - _HIDESINGLEPIXEL_ON
-  - _PHOSPHORPASS_ON
+  - _MAINPASS_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -91,7 +91,7 @@ Material:
     - _InvertUV: 0
     - _MainFadeEnd: 3
     - _MainFadeStart: 1
-    - _MainPass: 0
+    - _MainPass: 1
     - _MaxRadius: 32
     - _MaxTexelCheck: 3
     - _Metallic: 0
@@ -102,7 +102,7 @@ Material:
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _PassThrough: 0
-    - _PhosphorPass: 1
+    - _PhosphorPass: 0
     - _PixelRoundness: 1
     - _PixelSnap: 0
     - _Quality: 1
