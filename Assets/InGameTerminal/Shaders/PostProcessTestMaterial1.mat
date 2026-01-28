@@ -12,7 +12,11 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _BLURPASS_ON
+  - _FADEPASS_ON
+  - _HIDESINGLEPIXEL_ON
+  - _MAINPASS_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -66,8 +70,9 @@ Material:
     m_Ints: []
     m_Floats:
     - _BaseRadius: 0
-    - _BlurFactorX: 0
-    - _BlurFactorY: 0
+    - _BlurFactorX: 1
+    - _BlurFactorY: 1
+    - _BlurPass: 1
     - _BumpScale: 1
     - _ColorMask: 15
     - _Cutoff: 0.5
@@ -75,25 +80,36 @@ Material:
     - _DistanceCutoff: 0.5
     - _DistanceFactor: 3.11
     - _DstBlend: 0
+    - _FadeEnd: 15
+    - _FadePass: 1
+    - _FadeStart: 3
     - _FwidthFactor: 0
+    - _GaussXPass: 0
+    - _GaussYPass: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
+    - _HideSinglePixel: 1
+    - _MainFadeEnd: 3
+    - _MainFadeStart: 1
+    - _MainPass: 1
     - _MaxRadius: 32
+    - _MaxTexelCheck: 3
     - _Metallic: 0
     - _MinPixelSize: 1
     - _Mip0: 1
     - _Mode: 0
+    - _NeighborFactor: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _PassThrough: 0
     - _PixelRoundness: 1
     - _PixelSnap: 0
     - _Quality: 1
-    - _RoundnessAspect: 3.8
-    - _RoundnessType: 0
+    - _RoundnessAspect: 0.3
+    - _RoundnessType: 2
     - _ScanLineGap: 0
-    - _ScanlineGap: 1.11
+    - _ScanlineGap: 0
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1

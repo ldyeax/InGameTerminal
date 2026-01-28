@@ -8,23 +8,22 @@ Shader "InGameTerminal/VT320 Second Pass"
 	_ScanlineGap ("Scanline Gap", Range(0, 1)) = 0
 	_PixelRoundness ("Pixel Roundness", Range(0, 2)) = 1
 	_RoundnessAspect ("Roundness Aspect (H/V)", Range(0.1, 10)) = 0.8
-	_VerticalSpan ("Vertical Span (Texels)", Range(0.1, 4)) = 1
 	_PassThrough ("Pass Through", Range(0, 1)) = 0
 	_Threshold ("Threshold", Range(0,1)) = 0.8
 	_BlurFactorX ("Blur Factor X", Range(0, 10)) = 0
 	_BlurFactorY ("Blur Factor Y", Range(0, 10)) = 0
-	_RoundnessType ("Roundness Type", Range(0,2)) = 05
 	_MaxTexelCheck ("_MaxTexelCheck", Range(1, 250)) = 1
-	_FadeStart ("Start fade to Glow", Range(1,100)) = 1
-	_FadeEnd ("End fade to Glow", Range(1, 100)) = 5
-	_MainFadeStart ("Main Fade Start", Range(1,100)) = 1
-	_MainFadeEnd ("Main Fade End", Range(1, 100)) = 5
+	_FadeStart ("Start fade to Glow", Range(0,100)) = 1
+	_FadeEnd ("End fade to Glow", Range(0, 100)) = 5
+	_MainFadeStart ("Main Fade Start", Range(0,100)) = 1
+	_MainFadeEnd ("Main Fade End", Range(0, 100)) = 5
 	_NeighborFactor ("Neighbor Factor", Range(0, 5)) = 0.5
 	[Toggle] _MainPass ("Enable Main Pass", Float) = 1
 	[Toggle] _BlurPass ("Enable Blur Pass", Float) = 0
 	[Toggle] _FadePass ("Enable Fade Pass", Float) = 1
 	[Toggle] _GaussXPass ("Enable Gaussian X Pass", Float) = 0
 	[Toggle] _GaussYPass ("Enable Gaussian Y Pass", Float) = 0
+	[Toggle] _HideSinglePixel ("Hide Single Pixel", Float) = 1
 	}
 	SubShader
 	{
@@ -71,20 +70,22 @@ Shader "InGameTerminal/VT320 Second Pass"
 			float4 _MainTex_TexelSize; // x=1/width, y=1/height, z=width, w=height
 			fixed4 _Color;
 			float _PixelSnap;
-			float _MinPixelSize;
+
 			float _ScanlineGap;
 			float _PixelRoundness;
-			float _VerticalSpan;
+
 			float _PassThrough;
 			float _Threshold;
-			float _RoundnessType;
-			float _BlurFactorX;
-			float _BlurFactorY;
+
 			float _FadeStart;
 			float _FadeEnd;
+
 			float _MainPass;
 			float _MainFadeStart;
 			float _MainFadeEnd;
+
+			float _HideSinglePixel;
+
 			v2f vert(appdata v)
 			{
 				v2f o;
@@ -145,29 +146,11 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 				fixed4 colorFloor = fixed4(_Color.r, _Color.g, _Color.b, 1) * smoothstep(_FadeStart, _FadeEnd, texelsPerPixelMax);
 
-				// if (texelsPerPixelMax > 1.0)
-				// {
-				// 	float smoothsteppedDistanceFactor = smoothstep(0.0, 6, texelsPerPixelMax - 1.0)/6.0;
-				// 	col += smoothsteppedDistanceFactor*i.color;
-				// 	CHECKMAX(col);
-				// 	col.a = 1;
-				// 	return col;
-				// }
-
-				if (texelsPerPixelMax > 1.0)
-				{
-					// col += i.color * smoothstep(0, 1, texelsPerPixelMax - 32.0);
-					// CHECKMAX(col);
-					// colorFloor = col;
-				}
-
 				// Calculate position within the current texel (0 to 1)
 				// For vertical span > 1, group multiple texels together
 				float2 texelCoord = uv * float2(_MainTex_TexelSize.z, _MainTex_TexelSize.w);
 				float2 texelPos = frac(texelCoord);
 
-				// Calculate position within vertical span group (0 to 1 across _VerticalSpan texels)
-				//float verticalGroupPos = frac(texelCoord.y / _VerticalSpan);
 				float verticalGroupPos = frac(uv.y*24*12);
 				float horizontalGroupPos = frac(uv.x*80*15);
 
@@ -180,19 +163,12 @@ Shader "InGameTerminal/VT320 Second Pass"
 				// // Apply scanline gap effect
 				if (_ScanlineGap > 0.0)
 				{
-					// Create gap at the bottom of each texel row
-					// When texelPos.y is close to 1 (bottom of texel), darken the pixel
-					//float gapStart = 1.0 - _ScanlineGap;
-					//float scanlineMask = smoothstep(gapStart, verticalGroupPos, texelPos.y)/_VerticalSpan;
-
-
 					// Darken the gap area
 					col.rgb *= (1.0 - scanlineMask);
 				}
 
 				if (_PixelRoundness > 0.001)
 				{
-
 					// Only use vertical position for the dot effect
 					// Convert vertical group position to -1 to 1 range (center at 0)
 					float centeredY = verticalGroupPos * 2.0 - 1.0;
@@ -289,11 +265,15 @@ Shader "InGameTerminal/VT320 Second Pass"
 							edgeDist = normalizedRightDist;
 						}
 						else {
+							if (_HideSinglePixel > 0.5) {
+								return fixed4(0,0,0,1);
+							}
 							// edgeDist = normalizedCenterDist;
 							// edgeDist.x *= 2.0;
 							float2 dotDelta = centerDelta;
 							dotDelta.x *= 2.0;
 							edgeDist = length(dotDelta / (checkDelta));
+
 						}
 						//return fixed4(0, 1.0 - normalizedRightDist, 0, 1);
 						//float edgeMask = 1.0 - smoothstep(0, 1.01, edgeDist);
@@ -366,7 +346,6 @@ Shader "InGameTerminal/VT320 Second Pass"
 			float _MinPixelSize;
 			float _ScanlineGap;
 			float _PixelRoundness;
-			float _VerticalSpan;
 			float _PassThrough;
 			float _Threshold;
 			float _RoundnessType;

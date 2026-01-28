@@ -13,6 +13,7 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords:
+  - _HIDESINGLEPIXEL_ON
   - _MAINPASS_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -47,9 +48,10 @@ Material:
     - _FadeStart: 2
     - _GaussXPass: 0
     - _GaussYPass: 0
+    - _HideSinglePixel: 1
     - _Invert: 0
     - _MainFadeEnd: 100
-    - _MainFadeStart: 1
+    - _MainFadeStart: 100
     - _MainPass: 1
     - _MaskFromLuma: 0
     - _MaxTexelCheck: 3
@@ -61,7 +63,7 @@ Material:
     - _PixelRoundness: 1
     - _PixelSnap: 0
     - _Radius: 2
-    - _RoundnessAspect: 0.5
+    - _RoundnessAspect: 0.4
     - _RoundnessType: 2
     - _ScanlineGap: 0
     - _Softness: 0.5
