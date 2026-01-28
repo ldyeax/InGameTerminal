@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace InGameTerminal
 {
 	public struct TerminalState
@@ -5,5 +7,6 @@ namespace InGameTerminal
 		public TerminalBufferValue[,] terminalBuffer;
 		public TerminalBufferValue[,] previousTerminalBuffer;
 		public TextAttributes TextAttributes;
+		public Vector2Int ExpectedTerminalPosition;
 	}
 }

@@ -340,15 +340,19 @@ namespace InGameTerminal
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 
 			terminalCommands.Clear();
-			terminalCommands.Add(new TerminalCommand()
-			{
-				CommandType = TerminalCommandType.HomeCursor
-			});
-			terminalCommands.Add(new TerminalCommand()
-			{
-				CommandType = TerminalCommandType.CharacterBank,
-				X = (int)TerminalCharacterBank.ASCII
-			});
+			//if (terminalState.ExpectedTerminalPosition.x != 0 || terminalState.ExpectedTerminalPosition.y != 0)
+			//{
+			//	terminalCommands.Add(new TerminalCommand()
+			//	{
+			//		CommandType = TerminalCommandType.HomeCursor
+			//	});
+			//}
+
+			//terminalCommands.Add(new TerminalCommand()
+			//{
+			//	CommandType = TerminalCommandType.CharacterBank,
+			//	X = (int)TerminalCharacterBank.ASCII
+			//});
 			if (redraw)
 			{
 				terminalCommands.Add(new TerminalCommand()
@@ -373,7 +377,8 @@ namespace InGameTerminal
 			 * But just sending an escape sequence etc. does not necessarily move the cursor.
 			 * If we skip over a character because it hasn't changed, then later on we will need to move the cursor to catch up to the new position.
 			 **/
-			Vector2Int expectedTerminalCursorPosition = default;
+			//Vector2Int expectedTerminalCursorPosition = default;
+			ref Vector2Int expectedTerminalCursorPosition = ref terminalState.ExpectedTerminalPosition;
 			// Track the current character bank state of the terminal (starts as ASCII)
 			TerminalCharacterBank currentCharacterBank = TerminalCharacterBank.ASCII;
 

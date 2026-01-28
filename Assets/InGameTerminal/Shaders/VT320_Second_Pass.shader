@@ -24,6 +24,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 	[Toggle] _GaussXPass ("Enable Gaussian X Pass", Float) = 0
 	[Toggle] _GaussYPass ("Enable Gaussian Y Pass", Float) = 0
 	[Toggle] _HideSinglePixel ("Hide Single Pixel", Float) = 1
+	[Toggle] _InvertUV ("Invert UV", Float) = 0
 	}
 	SubShader
 	{
@@ -85,6 +86,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 			float _MainFadeEnd;
 
 			float _HideSinglePixel;
+			float _InvertUV;
 
 			v2f vert(appdata v)
 			{
@@ -105,6 +107,12 @@ Shader "InGameTerminal/VT320 Second Pass"
 				}
 
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+
+				if (_InvertUV > 0.5)
+				{
+					o.uv = float2(1.0 - o.uv.x, 1.0 - o.uv.y);
+				}
+
 				o.color = v.color * _Color;
 
 				//o.snappedTerminalPixel = floor(o.uv / TERMINAL_PIXEL_DELTA) * TERMINAL_PIXEL_DELTA;
