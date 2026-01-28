@@ -2,23 +2,23 @@ using UnityEngine;
 
 namespace InGameTerminal
 {
-    public class TestHolder : MonoBehaviour
-    {
-        public GameObject Held;
+	public class TestHolder : MonoBehaviour
+	{
+		public GameObject Held;
 
-        private void Awake()
-        {
+		private void Awake()
+		{
 
-        }
+		}
 
-        private void Start()
-        {
+		private void Start()
+		{
 
-        }
+		}
 
 		public void Pudim()
 		{
 			Held.SetActive(true);
 		}
-    }
+	}
 }

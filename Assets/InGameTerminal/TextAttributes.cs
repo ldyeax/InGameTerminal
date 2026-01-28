@@ -16,17 +16,29 @@ namespace InGameTerminal
 		/// </summary>
 		public int ID;
 
+		private readonly byte GetAttributeMask()
+		{
+			byte mask = 0;
+			if (Bold) mask |= 1;
+			if (Italic) mask |= 2;
+			if (Underline) mask |= 4;
+			if (Blink) mask |= 8;
+			if (Inverted) mask |= 16;
+			if (PreviousItalic) mask |= 32;
+			if (NextItalic) mask |= 64;
+			return mask;
+		}
+
 		public readonly UnityEngine.Color AttributesToVertexColor()
 		{
 			UnityEngine.Color ret = UnityEngine.Color.white;
-			ret.r = GetHashCode() / 255.0f;
+			ret.r = GetAttributeMask() / 255.0f;
 			return ret;
 		}
 		public readonly UnityEngine.Color AttributesToVertexColor32()
 		{
-			UnityEngine.Color32 ret = UnityEngine.Color.white;
-			ret.r = (byte)(GetHashCode() & 0xFF);
-			return ret;
+			byte mask = GetAttributeMask();
+			return new UnityEngine.Color32(mask, 255, 255, 255);
 		}
 		public static bool operator ==(TextAttributes a, TextAttributes b)
 		{

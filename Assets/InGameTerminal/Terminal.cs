@@ -603,6 +603,8 @@ namespace InGameTerminal
 						{
 							bool allRemainingAreSpaces = true;
 							bool anyNeedClearing = false;
+							bool remainingAttributesMatch = true;
+							TextAttributes currentAttributes = terminalState.TextAttributes;
 							
 							for (int x2 = x + 1; x2 < Width; x2++)
 							{
@@ -618,9 +620,19 @@ namespace InGameTerminal
 								{
 									anyNeedClearing = true;
 								}
+
+								TextAttributes lookaheadAttributes = lookaheadCell.TextAttributes;
+								if (lookaheadAttributes.Bold != currentAttributes.Bold ||
+									lookaheadAttributes.Italic != currentAttributes.Italic ||
+									lookaheadAttributes.Underline != currentAttributes.Underline ||
+									lookaheadAttributes.Blink != currentAttributes.Blink ||
+									lookaheadAttributes.Inverted != currentAttributes.Inverted)
+								{
+									remainingAttributesMatch = false;
+								}
 							}
 							
-							if (allRemainingAreSpaces && anyNeedClearing)
+							if (allRemainingAreSpaces && anyNeedClearing && remainingAttributesMatch)
 							{
 								// All remaining cells on this line are spaces and need clearing
 								terminalCommands.Add(new TerminalCommand()

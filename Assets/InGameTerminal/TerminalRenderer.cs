@@ -6,7 +6,7 @@
  * - Underline row force
  * - Reverse video
  * - Blink mask
- * 
+ *
  * Horizontal line at 17,7
  * Vertical line at 24,7
  **/
@@ -71,7 +71,7 @@ namespace InGameTerminal
 		{
 			if (!pixelSnap)
 				return value;
-			
+
 			// X has no scaling, so just round to nearest pixel
 			return Mathf.Round(value);
 		}
@@ -87,11 +87,11 @@ namespace InGameTerminal
 		{
 			if (!pixelSnap || _terminalDefinition == null)
 				return localY;
-			
+
 			float pixelHeight = _terminalDefinition.PixelHeight;
 			if (pixelHeight <= 0)
 				pixelHeight = 1.0f;
-			
+
 			// Transform to screen space, snap, transform back
 			float screenY = localY * pixelHeight;
 			float snappedScreenY = Mathf.Round(screenY);
@@ -157,7 +157,7 @@ namespace InGameTerminal
 			// X snapping is straightforward since X scale is 1
 			float xLeft = SnapToPixelX(pixelX);
 			float xRight = SnapToPixelX(pixelX + _terminalDefinition.GlyphWidth);
-			
+
 			// Y snapping must account for PixelHeight scale factor
 			// Local Y is negated for UI space (top-left origin)
 			float yTop = SnapToPixelY(-pixelY);
@@ -397,7 +397,7 @@ namespace InGameTerminal
 
 			// Force the canvas renderer to update
 			_canvasRenderer.SetMesh(_mesh);
-			
+
 		}
 		private struct DrawTerminalCommandsState
 		{
@@ -542,7 +542,7 @@ namespace InGameTerminal
 
 					case TerminalCommandType.EL_CursorToEnd:
 						// Erase in Line - clear from cursor to end of line
-						
+
 						for (int x = position.x; x < terminal.Width; x++)
 						{
 							DrawCharToMesh(spaceXY.x, spaceXY.y, x, position.y, drawTerminalCommandsState.TextAttributes);
@@ -582,11 +582,11 @@ namespace InGameTerminal
 				}
 			}
 		}
-		
-		
 
 
-		
+
+
+
 		private void OnDestroy()
 		{
 			if (_mesh != null)
@@ -772,7 +772,7 @@ namespace InGameTerminal
 		}
 		private void OnDisable()
 		{
-			
+
 		}
 
 
