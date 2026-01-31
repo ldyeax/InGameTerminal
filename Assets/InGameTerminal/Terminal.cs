@@ -109,10 +109,6 @@ namespace InGameTerminal
 			return ret;
 		}
 
-		void Start()
-		{
-
-		}
 		private int nextConnectorID = 1;
 		private void ActualizeConnectedLinesToBuffer(ref TerminalState terminalState)
 		{
@@ -339,20 +335,24 @@ namespace InGameTerminal
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 
-			terminalCommands.Clear();
-			//if (terminalState.ExpectedTerminalPosition.x != 0 || terminalState.ExpectedTerminalPosition.y != 0)
-			//{
-			//	terminalCommands.Add(new TerminalCommand()
-			//	{
-			//		CommandType = TerminalCommandType.HomeCursor
-			//	});
-			//}
+			int skipCounter = 0;
 
-			//terminalCommands.Add(new TerminalCommand()
-			//{
-			//	CommandType = TerminalCommandType.CharacterBank,
-			//	X = (int)TerminalCharacterBank.ASCII
-			//});
+			terminalCommands.Clear();
+			if (terminalState.ExpectedTerminalPosition.x != 0 || terminalState.ExpectedTerminalPosition.y != 0)
+			{
+				terminalCommands.Add(new TerminalCommand()
+				{
+					CommandType = TerminalCommandType.HomeCursor
+				});
+				skipCounter++;
+			}
+
+			terminalCommands.Add(new TerminalCommand()
+			{
+				CommandType = TerminalCommandType.CharacterBank,
+				X = (int)TerminalCharacterBank.ASCII
+			});
+			skipCounter++;
 			if (redraw)
 			{
 				terminalCommands.Add(new TerminalCommand()
@@ -554,7 +554,8 @@ namespace InGameTerminal
 								X = cell.AtlasX,
 								Y = cell.AtlasY
 							});
-							movedCursor = true;
+							// todo: check logic
+							//movedCursor = true;
 						}
 						else
 						{
@@ -648,7 +649,7 @@ namespace InGameTerminal
 				}
 
 			}
-			if (terminalCommands.Count == 1)
+			if (terminalCommands.Count == skipCounter)
 			{
 				terminalCommands.Clear();
 			}

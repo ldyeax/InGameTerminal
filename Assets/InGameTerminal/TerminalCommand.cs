@@ -46,13 +46,15 @@ namespace InGameTerminal
 		Box_UpTee,
 		Box_DownTee,
 
+		ShowCursor,
+		HideCursor,
 	}
 	public struct TerminalCommand
 	{
 		public TerminalCommandType CommandType;
 		public int X;
 		public int Y;
-		public override string ToString()
+		public override readonly string ToString()
 		{
 			return CommandType.ToString() + "(" + X + ", " + Y + ")";
 		}

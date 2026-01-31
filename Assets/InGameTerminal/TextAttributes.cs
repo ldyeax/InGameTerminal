@@ -11,6 +11,7 @@ namespace InGameTerminal
 		public bool Inverted;
 		public bool PreviousItalic;
 		public bool NextItalic;
+		public bool IsCursor;
 		/// <summary>
 		/// Used only be meshrenderer, doesn't need to go in the actual vertex color
 		/// </summary>
@@ -26,6 +27,7 @@ namespace InGameTerminal
 			if (Inverted) mask |= 16;
 			if (PreviousItalic) mask |= 32;
 			if (NextItalic) mask |= 64;
+			if (IsCursor) mask |= 128;
 			return mask;
 		}
 
@@ -84,6 +86,7 @@ namespace InGameTerminal
 			Inverted = (hash & 16) != 0;
 			PreviousItalic = (hash & 32) != 0;
 			NextItalic = (hash & 64) != 0;
+			IsCursor = (hash & 128) != 0;
 			ID = -1;
 		}
 	}

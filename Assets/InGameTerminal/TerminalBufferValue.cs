@@ -60,9 +60,11 @@ namespace InGameTerminal
 		public bool HasTerminalCommand;
 		public TerminalCommandType TerminalCommandType;
 
-		public readonly Color AttributesToVertexColor()
+		public readonly Color AttributesToVertexColor(bool isCursor = false)
 		{
-			return TextAttributes.AttributesToVertexColor();
+			TextAttributes textAttributes = TextAttributes;
+			textAttributes.IsCursor = isCursor;
+			return textAttributes.AttributesToVertexColor();
 		}
 
 		public static bool operator ==(TerminalBufferValue a, TerminalBufferValue b)

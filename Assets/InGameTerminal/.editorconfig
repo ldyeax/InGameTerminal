@@ -27,3 +27,11 @@ dotnet_diagnostic.IDE0074.severity = none
 dotnet_diagnostic.IDE0270.severity = none
 # Use conditional delegate call
 dotnet_diagnostic.IDE1005.severity = none
+# New expression can be simplified
+dotnet_diagnostic.IDE0090.severity = none
+# Object initialization can be simplified
+dotnet_diagnostic.IDE0017.severity = none
+dotnet_diagnostic.UNT0013.severity = none
+# Use switch return statement
+dotnet_diagnostic.IDE0066.severity = none
+dotnet_diagnostic.UNT0039.severity = none

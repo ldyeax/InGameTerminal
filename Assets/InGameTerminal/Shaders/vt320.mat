@@ -81,6 +81,7 @@ Material:
     m_Floats:
     - _AtlasCols: 32
     - _AtlasRows: 9
+    - _BlinkState: 0
     - _BumpScale: 1
     - _ColorMask: 15
     - _Cutoff: 0.5

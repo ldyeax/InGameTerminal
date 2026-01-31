@@ -11,9 +11,30 @@ namespace InGameTerminal.TerminalDefinitions
 	[CreateAssetMenu(fileName = "VT320 Terminal Definition", menuName = "InGameTerminal/VT320 Terminal Definition", order = 1)]
 	public sealed class VT320_ScriptableObject : UnityTerminalDefinitionBase, ITerminalDefinition, IChartoXY
 	{
-		public override int AtlasRows { get; set; } = 9;
+		/// <summary>
+		/// 9 base rows + 3 rows for user defined characters
+		/// </summary>
+		public override int AtlasRows { get; set; } = 12;
 
 		public override int AtlasCols { get; set; } = 32;
+
+		/// <summary>
+		/// The source atlas is assumed to have been created with the extra space for custom characters, blank
+		/// </summary>
+		public override RenderTexture GetInstanceAtlas()
+		{
+#if UNITY_EDITOR
+			if (!Application.isPlaying)
+			{
+				throw new InvalidOperationException("GetInstanceAtlas can only be called in play mode.");
+			}
+#endif
+			RenderTexture renderTexture = new RenderTexture(Atlas.mainTexture.width, Atlas.mainTexture.height, 0, RenderTextureFormat.ARGB32);
+			renderTexture.enableRandomWrite = true;
+			renderTexture.Create();
+			Graphics.Blit(Atlas.mainTexture, renderTexture);
+			return renderTexture;
+		}
 
 		public override int GlyphWidth { get; set; } = 15;
 

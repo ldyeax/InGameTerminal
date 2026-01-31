@@ -1,16 +1,4 @@
-﻿/**
- * Attributes are composited in this order:
- * - Base glyph fetch
- * - Italic shear
- * - Bold OR-shift
- * - Underline row force
- * - Reverse video
- * - Blink mask
- *
- * Horizontal line at 17,7
- * Vertical line at 24,7
- **/
-
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
@@ -30,8 +18,6 @@ namespace InGameTerminal
 		private RenderTexture uiRenderTexture = null;
 		[SerializeField]
 		private Camera uiCamera = null;
-		[SerializeField]
-		private Shader[] effects;
 
 		private ITerminalDefinition _terminalDefinition;
 
@@ -98,7 +84,7 @@ namespace InGameTerminal
 			return snappedScreenY / pixelHeight;
 		}
 
-		private void InitMesh()
+		private void InitMesh(RenderTexture atlasTexture = null)
 		{
 			_mesh.Clear();
 			vertices.Clear();
@@ -122,7 +108,7 @@ namespace InGameTerminal
 			_mesh.RecalculateBounds();
 
 			_canvasRenderer.SetMesh(_mesh);
-			_canvasRenderer.SetMaterial(_terminalDefinition.Atlas, null);
+			_canvasRenderer.SetMaterial(_terminalDefinition.Atlas, atlasTexture);
 		}
 
 		List<Vector3> vertices = new List<Vector3>();
@@ -328,7 +314,6 @@ namespace InGameTerminal
 							}
 							TextAttributes nextAttributes = new TextAttributes(nextColor);
 							Color32 baseColor = colors[vertexIndex];
-							TextAttributes currentTextAttributes = new TextAttributes(baseColor);
 							// Update current based on previous and next
 							int previousAtlasIndex = (x > 0) ? atlasIndices[cellIndex - 1] : spaceIndex;
 							int nextAtlasIndex = (x < terminal.Width - 1) ? atlasIndices[cellIndex + 1] : spaceIndex;
@@ -376,7 +361,7 @@ namespace InGameTerminal
 				for (int x = 0; x < terminal.Width; x++)
 				{
 					var cell = terminalBuffer[x, y];
-					var previousCell = previousTerminalBuffer[x, y];
+					// var previousCell = previousTerminalBuffer[x, y];
 
 					//if (cell != previousCell || forceRedraw)
 					{
@@ -403,6 +388,7 @@ namespace InGameTerminal
 		{
 			public Vector2Int Position;
 			public TextAttributes TextAttributes;
+			public bool ShowCursor;
 			public readonly Color AttributesToVertexColor()
 			{
 				return TextAttributes.AttributesToVertexColor();
@@ -579,13 +565,40 @@ namespace InGameTerminal
 						position.x = 0;
 						position.y = 0;
 						break;
+
+					case TerminalCommandType.ShowCursor:
+						drawTerminalCommandsState.ShowCursor = true;
+						break;
+
+					case TerminalCommandType.HideCursor:
+						drawTerminalCommandsState.ShowCursor = false;
+						break;
 				}
 			}
 		}
 
+		private void DrawCursorToMesh(DrawTerminalCommandsState state)
+		{
+			for (int y = 0; y < terminal.Height; y++)
+			{
+				for (int x = 0; x < terminal.Width; x++)
+				{
+					bool isCursor = state.ShowCursor && (x == state.Position.x && y == state.Position.y);
 
-
-
+					// Invert the colors at the cursor position
+					int cellIndex = y * terminal.Width + x;
+					int vertexIndex = cellIndex * 4;
+					for (int i = 0; i < 4; i++)
+					{
+						Color32 originalColor = colors[vertexIndex + i];
+						TextAttributes textAttributes = new TextAttributes(originalColor);
+						textAttributes.IsCursor = isCursor;
+						Color32 updatedColor = textAttributes.AttributesToVertexColor32();
+						colors[vertexIndex + i] = updatedColor;
+					}
+				}
+			}
+		}
 
 		private void OnDestroy()
 		{
@@ -600,6 +613,15 @@ namespace InGameTerminal
 		public bool DebugReadyToUpdate = false;
 
 		public int FrameRate = 60;
+		private void Init_Player()
+		{
+			ref var terminalState = ref this.terminalState;
+			ref var terminalBuffer = ref terminalState.terminalBuffer;
+			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
+			terminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
+			previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
+			InitMesh(_terminalDefinition.GetInstanceAtlas());
+		}
 		private void UpdateBuffer_Player(bool redraw)
 		{
 			ref var terminalState = ref this.terminalState;
@@ -607,19 +629,29 @@ namespace InGameTerminal
 			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 			if (terminalBuffer == null)
 			{
+				Debug.Log("Terminal buffer null, initializing");
 				redraw = true;
-				terminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
-				previousTerminalBuffer = new TerminalBufferValue[terminal.Width, terminal.Height];
-				InitMesh();
+				Init_Player();
+				terminalState = ref this.terminalState;
+				terminalBuffer = ref terminalState.terminalBuffer;
+				previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 			}
 			terminal.BuildBuffer(ref terminalState);
 			terminal.BuildTerminalCommands(ref terminalState, terminalCommands, redraw);
 		}
 		private IEnumerator UpdateCoroutine()
 		{
-			bool first = false;
+#if UNITY_EDITOR
+			if (!Application.isPlaying)
+			{
+				throw new InvalidOperationException("UpdateCoroutine is only for Play mode");
+			}
+#endif
+			drawTerminalCommandsState.ShowCursor = true;
+			bool first = true;
 			int id = 0;
 			string lastLog = "";
+			float blinkStateTime = 1.0f;
 			while (true)
 			{
 				if (!CheckSetupForUpdate())
@@ -627,7 +659,13 @@ namespace InGameTerminal
 					yield return null;
 					continue;
 				}
+				if (first)
+				{
+					Debug.Log("First, running Init_Player", this);
+					Init_Player();
+				}
 				UpdateBuffer_Player(first);
+				first = false;
 
 				int commandsPerSecond = (int)(simulatedBaudRate / 8.0f);
 				int commandsPerFrame = commandsPerSecond / FrameRate;
@@ -638,6 +676,17 @@ namespace InGameTerminal
 				int start = 0;
 				int end = start + commandsPerFrame;
 				DrawTerminalCommandsToMesh(terminalCommands, start, end, id);
+				blinkStateTime -= Time.deltaTime;
+				if (terminalCommands.Count > 0)
+				{
+					blinkStateTime = 1.0f;
+				}
+				_BlinkState = blinkStateTime > 0.0f ? 1.0f : 0.0f;
+				if (blinkStateTime <= -1.0f)
+				{
+					blinkStateTime = 1.0f;
+				}
+				DrawCursorToMesh(drawTerminalCommandsState);
 				if (LogCommands)
 				{
 					StringBuilder sb = new();
@@ -647,7 +696,7 @@ namespace InGameTerminal
 						sb.Append(tc.ToString() + " ");
 					}
 					string sbString = sb.ToString();
-					if (sbString != lastLog)
+					//if (sbString != lastLog)
 					{
 						lastLog = sbString;
 						Debug.Log(sbString, this);
@@ -664,6 +713,17 @@ namespace InGameTerminal
 					DrawTerminalCommandsToMesh(terminalCommands, start, end, id);
 					// Debug.Log($"DrawTerminalCommandsToMesh commands {start} to {end}");
 					//UpdatePreviousAndNextVertexColors(id, true);
+					blinkStateTime -= Time.deltaTime;
+					if (terminalCommands.Count > 0)
+					{
+						blinkStateTime = 1.0f;
+					}
+					_BlinkState = blinkStateTime > 0.0f ? 1.0f : 0.0f;
+					if (blinkStateTime <= -1.0f)
+					{
+						blinkStateTime = 1.0f;
+					}
+					DrawCursorToMesh(drawTerminalCommandsState);
 					UpdateUVs();
 				}
 				//else
@@ -671,7 +731,7 @@ namespace InGameTerminal
 				//	Debug.Log("Not ReadyToDraw TerminalRenderer UpdateCoroutine");
 				//}
 				id++;
-				yield return null; // Always yield to prevent infinite loop
+				yield return null;
 			}
 		}
 		private bool CheckSetupForUpdate()
@@ -729,11 +789,19 @@ namespace InGameTerminal
 			DrawBuffer();
 			UpdateUVs();
 		}
+		private float _BlinkState = 0.0f;
 		private void Update()
 		{
-			if (CheckSetupForUpdate() && !Application.isPlaying)
+			if (CheckSetupForUpdate())
 			{
-				UpdateInEditor();
+				if (Application.isPlaying)
+				{
+					_canvasRenderer.GetMaterial().SetFloat("_BlinkState", _BlinkState);
+				}
+				else
+				{
+					UpdateInEditor();
+				}
 			}
 		}
 		public Camera GetCamera()
@@ -744,6 +812,7 @@ namespace InGameTerminal
 		{
 			if (Application.isPlaying)
 			{
+				terminalState = new TerminalState();
 				StartCoroutine(UpdateCoroutine());
 			}
 
@@ -763,18 +832,6 @@ namespace InGameTerminal
 				uiCamera.orthographic = true;
 				uiCamera.orthographicSize = terminal.CanvasHeight / 2.0f;
 			}
-
-
-			foreach (var terminalShader in GetComponents<Shaders.ITerminalShader>())
-			{
-				terminalShader.Init(uiRenderTexture);
-			}
 		}
-		private void OnDisable()
-		{
-
-		}
-
-
 	}
 }

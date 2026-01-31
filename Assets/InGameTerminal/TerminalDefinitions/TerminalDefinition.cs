@@ -10,6 +10,11 @@ namespace InGameTerminal
 	public interface ITerminalDefinition
 	{
 		Material Atlas { get; set; }
+		/// <summary>
+		/// Get an instance atlas, which can be modified at runtime for e.g. user defined characters
+		/// </summary>
+		/// <returns></returns>
+		RenderTexture GetInstanceAtlas();
 		int AtlasRows { get; set; }
 		int AtlasCols { get; set; }
 		int GlyphWidth { get; set; }
@@ -61,6 +66,7 @@ namespace InGameTerminal
 	{
 		[field: SerializeField]
 		public virtual Material Atlas { get; set; }
+		public abstract RenderTexture GetInstanceAtlas();
 		public abstract int AtlasRows { get; set; }
 		public abstract int AtlasCols { get; set; }
 		public abstract int GlyphWidth { get; set; }
@@ -95,6 +101,15 @@ namespace InGameTerminal
 
 		[field: SerializeField]
 		public override int AtlasRows { get; set; }
+		public override RenderTexture GetInstanceAtlas()
+		{
+			RenderTexture ret = new RenderTexture(Atlas.mainTexture.width, Atlas.mainTexture.height, 0, RenderTextureFormat.ARGB32);
+			ret.enableRandomWrite = true;
+			ret.Create();
+			Graphics.Blit(Atlas.mainTexture, ret);
+			Debug.Log("Created atlas instance", ret);
+			return ret;
+		}
 
 		[field: SerializeField]
 		public override int AtlasCols { get;  set; }
