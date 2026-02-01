@@ -5,10 +5,6 @@ Shader "InGameTerminal/VT320 First Pass"
 		_MainTex ("Atlas Texture", 2D) = "white" {}
 		_Color ("Tint", Color) = (1,1,1,1)
 		[Toggle] _PixelSnap ("Pixel Snap", Float) = 1
-		_GlyphWidth ("Glyph Width", Float) = 15
-		_GlyphHeight ("Glyph Height", Float) = 12
-		_AtlasCols ("Atlas Columns", Float) = 32
-		_AtlasRows ("Atlas Rows", Float) = 9
 		_UnderlineRow ("Underline Row", Float) = 10
 		_BlinkState ("Blink State", Float) = 1
 	}
@@ -31,6 +27,10 @@ Shader "InGameTerminal/VT320 First Pass"
 		Pass
 		{
 			HLSLPROGRAM
+			#define _GlyphWidth 15.0
+			#define _GlyphHeight 12.0
+			#define _AtlasCols 32.0
+			#define _AtlasRows 12.0
 			#pragma vertex vert
 			#pragma fragment frag
 
@@ -53,14 +53,9 @@ Shader "InGameTerminal/VT320 First Pass"
 			};
 
 			sampler2D _MainTex;
-			float4 _MainTex_ST;
-			float4 _MainTex_TexelSize; // x=1/width, y=1/height, z=width, w=height
+			fixed4 _MainTex_ST;
 			fixed4 _Color;
 			float _PixelSnap;
-			float _GlyphWidth;
-			float _GlyphHeight;
-			float _AtlasCols;
-			float _AtlasRows;
 			float _UnderlineRow;
 			float _BlinkState;
 			// Attribute bitmask (from TextAttributes.GetHashCode())
@@ -302,9 +297,9 @@ Shader "InGameTerminal/VT320 First Pass"
 					}
 					col.rgb = subtractFrom - col.rgb;
 					// Inverted cells show background, so make fully opaque
-					col.a = 1.0;
 				}
 
+				col.a = 1.0;
 				return col;
 			}
 			ENDHLSL

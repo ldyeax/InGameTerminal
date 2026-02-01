@@ -149,12 +149,12 @@ namespace InGameTerminal.Shaders
 				computeShader.SetFloat("_EndYOffset", endYOffset);
 				computeShader.SetFloat("_SampleScaleY", SampleScaleY);
 				computeShader.SetFloat("_SampleOffsetY", SampleOffsetY);
-				this.computeShader.Dispatch(kernel_RedrawPrescaledInput, 1, 24, 1);	
+				this.computeShader.Dispatch(kernel_RedrawPrescaledInput, 1, 24, 1);
 			}
 			runPhosphor = phosphor_input && phosphor_output && Phosphor;
 			if (runPhosphor)
 			{
-				computeShader.SetFloat("_Decay", Time.deltaTime * (1.0f / decay));
+				computeShader.SetFloat("_Decay", Time.unscaledDeltaTime * (1.0f / decay));
 				computeShader.SetTexture(kernel_Phosphor, "_Buffer", phosphor_input);
 				computeShader.SetTexture(kernel_Phosphor, "_Buffer2", phosphor_output);
 				this.computeShader.Dispatch(kernel_Phosphor, input.width / 8, input.height / 8, 1);

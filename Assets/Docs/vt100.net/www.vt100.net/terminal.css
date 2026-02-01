@@ -1,0 +1,101 @@
+body {
+	background: #fff;
+	color: #000;
+    font-family: sans-serif;
+    line-height: 150%
+}
+/* This is the mobile & universal stuff. */
+table { border-collapse: collapse }
+/* Some huge tables have "repeater" headers or sub-heads,
+ * <tr class="th"> that need to align as if they were in thead.
+ */
+caption { padding: 0.5em; text-align: left; font-weight: bolder }
+table thead tr,
+table tbody tr.th { vertical-align: bottom }
+table tbody tr,
+table tfoot tr { vertical-align: top }
+table th { text-align: left }
+table th, table td { padding: 0.2em 0.5em }
+/* Alignment overrides */
+th.c, td.c { text-align: center }
+th.r, td.r { text-align: right }
+td p:first-child { margin-top: 0 }
+
+img, svg { max-width: 100%; height: auto }
+
+header { border-bottom: thin solid black; padding: 0 0 0.5em 0 }
+footer { border-top: thin solid black; padding: 0.5em 0 0 0 }
+
+/* end of universal */
+
+/* Rest ordered roughly by expected order of appearance */
+
+/* Site logo has one pixel underneath the text, for alignment with the terminal icon,
+ * so align the text with following text. */
+#vt100-net-site-logo {
+    display: inline-block;
+    position: relative;
+    bottom: -1px
+}
+
+nav.breadcrumbs ol { display: inline; margin: 0; padding: 0 }
+nav.breadcrumbs li { display: inline; list-style-type: none }
+nav.breadcrumbs li + li:before { content: ' › ' }
+
+/* div.bookcover, for manuals, to replace #COVER */
+.bookcover { text-align: center }
+
+p.byline { text-align: center }
+.citation { text-align: left }
+
+ol.footnotes { position: relative; padding-left: 2em; margin-left: 0 }
+ol.ruler:before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 4em;
+    height: 1px;
+    background: black;
+}
+
+.footnote {
+	font-size: smaller;
+}
+
+.quotsec { padding: 1em 1em 1em 1em; background: none #ddd; color: #000; }
+.caveat { color: #800; background: #fff; }
+
+hr { margin-top: 30px }
+a:link { background: transparent none; color: #00f }
+a:visited { background: transparent none; color: #909 }
+a:active { background: transparent none; color: #f00 }
+
+.button { border: none; }
+h1 { text-align: center; line-height: 150% }
+.highlight { color: #000; background: #ff0 }
+.warning { color: #f00; background: transparent none }
+div.navbot { text-align: right }
+span.zwsp { font-size: 1px }
+span.thinsp { padding: 0.1em }
+
+#CHANGELIST .date { padding-right: 2em; text-align: left; white-space: nowrap }
+#CHANGELIST .desc { text-align: left }
+
+table.manxtermlist { border-collapse: collapse; border-top: solid thin #ccc; border-bottom: solid thin #ccc; }
+.manxtermlist thead tr { background-color: #eee; border-top: solid thin #ccc; border-bottom: solid thin #ccc; }
+.manxtermlist tr { vertical-align: top }
+.manxtermlist td, .manxtermlist th { padding: 0.2em 0.5em; text-align: left }
+.manxtermlist .odd td { background-color: #f8f8f8; }
+.manxtermlist .even td { background-color: #ffffff; }
+
+/* This footer is not for manuals, which tend to have three navigation elements */
+footer { margin: 1em 0; text-align: right }
+
+.cover-gallery { display: flex; flex-wrap: wrap; }
+.cover { margin: 1em }
+.cover img { height: 200px }
+
+/* used under shuford/ */
+a.dead { text-decoration: underline red; color: black }
+

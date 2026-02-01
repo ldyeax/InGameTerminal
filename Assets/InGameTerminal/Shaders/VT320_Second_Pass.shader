@@ -569,7 +569,9 @@ Shader "InGameTerminal/VT320 Second Pass"
 				color_ret.r = 0;
 				color_ret.g = 0;
 
-				color_ret.a = color_ret.b;
+				//color_ret.a = color_ret.b;
+				color_ret.a = 1.0;
+
 				//color_ret = max(color_ret, colorFloor);
 				// if (!isFading) {
 				// 	return fixed4(0,0,0,0);
@@ -628,6 +630,8 @@ Shader "InGameTerminal/VT320 Second Pass"
 			float _BlurPass;
 			float _MainFadeEnd;
 			float _MainFadeStart;
+			float _InvertUV;
+
 			v2f vert(appdata v)
 			{
 				v2f o;
@@ -647,6 +651,12 @@ Shader "InGameTerminal/VT320 Second Pass"
 				}
 
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+
+				if (_InvertUV > 0.5)
+				{
+					o.uv = float2(1.0 - o.uv.x, 1.0 - o.uv.y);
+				}
+
 				o.color = v.color * _Color;
 				return o;
 			}
@@ -789,6 +799,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 			float _FadeEnd;
 			fixed4 _Color;
 			float _FadePass;
+			float _InvertUV;
 
 			struct appdata_blur
 			{
@@ -808,6 +819,10 @@ Shader "InGameTerminal/VT320 Second Pass"
 				v2f_blur o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.uv = v.uv;
+				if (_InvertUV > 0.5)
+				{
+					o.uv = float2(1.0 - o.uv.x, 1.0 - o.uv.y);
+				}
 				o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
 				return o;
 			}

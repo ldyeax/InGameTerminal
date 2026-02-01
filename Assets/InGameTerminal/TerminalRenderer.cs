@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InGameTerminal.Elements;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
@@ -200,6 +201,7 @@ namespace InGameTerminal
 			float uvLeft = (float)atlasX / _terminalDefinition.AtlasCols;
 			float uvRight = (float)(atlasX + 1) / _terminalDefinition.AtlasCols;
 			float uvTop = 1.0f - (float)atlasY / _terminalDefinition.AtlasRows;
+			//Debug.Log(_terminalDefinition.AtlasRows);
 			float uvBottom = 1.0f - (float)(atlasY + 1) / _terminalDefinition.AtlasRows;
 
 			int atlasIndex = atlasY * _terminalDefinition.AtlasCols + atlasX;
@@ -676,7 +678,7 @@ namespace InGameTerminal
 				int start = 0;
 				int end = start + commandsPerFrame;
 				DrawTerminalCommandsToMesh(terminalCommands, start, end, id);
-				blinkStateTime -= Time.deltaTime;
+				blinkStateTime -= Time.unscaledDeltaTime;
 				if (terminalCommands.Count > 0)
 				{
 					blinkStateTime = 1.0f;
@@ -713,7 +715,7 @@ namespace InGameTerminal
 					DrawTerminalCommandsToMesh(terminalCommands, start, end, id);
 					// Debug.Log($"DrawTerminalCommandsToMesh commands {start} to {end}");
 					//UpdatePreviousAndNextVertexColors(id, true);
-					blinkStateTime -= Time.deltaTime;
+					blinkStateTime -= Time.unscaledDeltaTime;
 					if (terminalCommands.Count > 0)
 					{
 						blinkStateTime = 1.0f;
@@ -787,6 +789,24 @@ namespace InGameTerminal
 			}
 			terminal.BuildBuffer(ref terminalState);
 			DrawBuffer();
+			DebugElement de = _unityCanvas.GetComponentInChildren<DebugElement>();
+			if (de)
+			{
+				Debug.Log($"TerminalRenderer DrawBuffer DebugElement UVs: {de.UV_X},{de.UV_Y} to {de.UV_X_2},{de.UV_Y_2}");
+				var dbgTerminalPosition = de.GetTerminalPosition(_terminalDefinition);
+				int uvIndex = dbgTerminalPosition.y * terminal.Width + dbgTerminalPosition.x;
+				if (uvIndex >= 0 && uvIndex < uvs.Count)
+				{
+					uvs[uvIndex * 4 + 0] = new Vector2(de.UV_X, 1.0f - de.UV_Y); 
+					uvs[uvIndex * 4 + 1] = new Vector2(de.UV_X_2, 1.0f - de.UV_Y); 
+					uvs[uvIndex * 4 + 2] = new Vector2(de.UV_X_2, 1.0f - de.UV_Y_2);
+					uvs[uvIndex * 4 + 3] = new Vector2(de.UV_X, 1.0f - de.UV_Y_2);
+				}
+			}
+			else
+			{
+				Debug.Log($"TerminalRenderer DrawBuffer no DebugElement found on Canvas");
+			}
 			UpdateUVs();
 		}
 		private float _BlinkState = 0.0f;

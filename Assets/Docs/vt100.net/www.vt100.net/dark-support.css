@@ -1,0 +1,19 @@
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #111;
+        color: white;
+    }
+    a:link { color: #69f }
+    a:visited { color: #c6c }
+    header { border-bottom: thin solid white }
+    footer { border-top: thin solid white }
+    /* Used in dec_ansi_parser to make background yellow, but in dark mode
+     * we need this to also contrast with white text, so make background
+     * a deep pink */
+    .hilite { background: #099 }
+    ol.ruler:before { background: white }
+
+    .manxtermlist thead tr { background-color: #444; border-top: solid thin #888; border-bottom: solid thin #888; }
+    .manxtermlist .odd td { background-color: #222 }
+    .manxtermlist .even td { background-color: #000 }
+}

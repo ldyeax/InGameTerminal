@@ -51,7 +51,7 @@ namespace InGameTerminal.Shaders
 			{
 				computeShader.SetTexture(kernel_Phosphor, "_UIInput", _UIInput);
 				computeShader.SetTexture(kernel_Phosphor, "_UIOutput", _UIOutput);
-				computeShader.SetFloat("_Decay", Time.deltaTime / _Decay);
+				computeShader.SetFloat("_Decay", Time.unscaledDeltaTime / _Decay);
 				computeShader.Dispatch(kernel_Phosphor, _UIInput.width / 8, _UIInput.height / 8, 1);
 			}
 		}

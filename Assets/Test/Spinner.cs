@@ -17,7 +17,7 @@ namespace InGameTerminal.Test
 		public float z = 0;
 		private void Update()
 		{
-			transform.Rotate(new Vector3(x, y, z) * Time.deltaTime);
+			transform.Rotate(new Vector3(x, y, z) * Time.unscaledDeltaTime);
 		}
 	}
 }

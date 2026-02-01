@@ -58,7 +58,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 2e46bcd372ab71342885d2f74fd4ea1e, type: 3}
+        m_Texture: {fileID: 2800000, guid: 1b91257ba26ae18439cc460a3feae667, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Mask:
@@ -80,8 +80,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _AtlasCols: 32
-    - _AtlasRows: 9
-    - _BlinkState: 0
+    - _AtlasRows: 12
+    - _BlinkState: 1
     - _BumpScale: 1
     - _ColorMask: 15
     - _Cutoff: 0.5
@@ -95,6 +95,7 @@ Material:
     - _GlyphHeight: 12
     - _GlyphWidth: 15
     - _HorizontalFactor: 0.1
+    - _Invert: 0
     - _Metallic: 0
     - _MinPixelSize: 1
     - _Mode: 0

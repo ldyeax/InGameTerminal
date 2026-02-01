@@ -14,22 +14,48 @@ namespace InGameTerminal.TerminalDefinitions
 		/// <summary>
 		/// 9 base rows + 3 rows for user defined characters
 		/// </summary>
-		public override int AtlasRows { get; set; } = 12;
+		public override int AtlasRows
+		{
+			get
+			{
+				return 12;
+			}
+			set
+			{
+				throw new InvalidOperationException("AtlasRows is fixed for VT320 at 12.");
+			}
+		}
 
-		public override int AtlasCols { get; set; } = 32;
+		public override int AtlasCols
+		{
+			get
+			{
+				return 32;
+			}
+			set
+			{
+				throw new InvalidOperationException("AtlasCols is fixed for VT320 at 32.");
+			}
+		}
 
 		/// <summary>
 		/// The source atlas is assumed to have been created with the extra space for custom characters, blank
 		/// </summary>
 		public override RenderTexture GetInstanceAtlas()
 		{
+			return Atlas.mainTexture as RenderTexture;
 #if UNITY_EDITOR
 			if (!Application.isPlaying)
 			{
 				throw new InvalidOperationException("GetInstanceAtlas can only be called in play mode.");
 			}
 #endif
-			RenderTexture renderTexture = new RenderTexture(Atlas.mainTexture.width, Atlas.mainTexture.height, 0, RenderTextureFormat.ARGB32);
+			RenderTexture renderTexture = new RenderTexture(
+				AtlasCols * GlyphWidth,
+				AtlasRows * GlyphHeight,
+				0,
+				RenderTextureFormat.ARGB32
+			);
 			renderTexture.enableRandomWrite = true;
 			renderTexture.Create();
 			Graphics.Blit(Atlas.mainTexture, renderTexture);
@@ -92,6 +118,17 @@ namespace InGameTerminal.TerminalDefinitions
 				return Vector2Int.zero;
 			}
 			return new Vector2Int(-1, -1);
+		}
+
+		public override int HandleCommands(List<TerminalCommand> commands, int index)
+		{
+			//switch (commands[index].CommandType)
+			//{
+			//	case TerminalCommandType.DeviceControlSequence:
+
+			//}
+			//index += base.HandleCommands(commands, index);
+			return 0;
 		}
 	}
 }
