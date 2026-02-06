@@ -559,7 +559,7 @@ Shader "InGameTerminal/VT320 Second Pass"
 					}
 				}
 
-				return fixed4(0,0,col.b,1);
+				return fixed4(0,col.b,0,1);
 
 				fixed4 color_ret = col.b * i.color;
 
@@ -567,7 +567,8 @@ Shader "InGameTerminal/VT320 Second Pass"
 
 				color_ret *= (1.0 - fadeOff);
 				color_ret.r = 0;
-				color_ret.g = 0;
+				color_ret.g = color_ret.b;
+				color_ret.b = 0;
 
 				//color_ret.a = color_ret.b;
 				color_ret.a = 1.0;

@@ -15,6 +15,7 @@ Material:
   m_InvalidKeywords:
   - _HIDESINGLEPIXEL_ON
   - _MAINPASS_ON
+  - _PHOSPHORPASS_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -50,6 +51,7 @@ Material:
     - _GaussYPass: 0
     - _HideSinglePixel: 1
     - _Invert: 0
+    - _InvertUV: 0
     - _MainFadeEnd: 100
     - _MainFadeStart: 100
     - _MainPass: 1
@@ -60,6 +62,7 @@ Material:
     - _NeighborFactor: 0
     - _OutputAlphaOnly: 0
     - _PassThrough: 0
+    - _PhosphorPass: 1
     - _PixelRoundness: 1
     - _PixelSnap: 0
     - _Radius: 2

@@ -789,24 +789,24 @@ namespace InGameTerminal
 			}
 			terminal.BuildBuffer(ref terminalState);
 			DrawBuffer();
-			DebugElement de = _unityCanvas.GetComponentInChildren<DebugElement>();
-			if (de)
-			{
-				Debug.Log($"TerminalRenderer DrawBuffer DebugElement UVs: {de.UV_X},{de.UV_Y} to {de.UV_X_2},{de.UV_Y_2}");
-				var dbgTerminalPosition = de.GetTerminalPosition(_terminalDefinition);
-				int uvIndex = dbgTerminalPosition.y * terminal.Width + dbgTerminalPosition.x;
-				if (uvIndex >= 0 && uvIndex < uvs.Count)
-				{
-					uvs[uvIndex * 4 + 0] = new Vector2(de.UV_X, 1.0f - de.UV_Y); 
-					uvs[uvIndex * 4 + 1] = new Vector2(de.UV_X_2, 1.0f - de.UV_Y); 
-					uvs[uvIndex * 4 + 2] = new Vector2(de.UV_X_2, 1.0f - de.UV_Y_2);
-					uvs[uvIndex * 4 + 3] = new Vector2(de.UV_X, 1.0f - de.UV_Y_2);
-				}
-			}
-			else
-			{
-				Debug.Log($"TerminalRenderer DrawBuffer no DebugElement found on Canvas");
-			}
+			//DebugElement de = _unityCanvas.GetComponentInChildren<DebugElement>();
+			//if (de)
+			//{
+			//	Debug.Log($"TerminalRenderer DrawBuffer DebugElement UVs: {de.UV_X},{de.UV_Y} to {de.UV_X_2},{de.UV_Y_2}");
+			//	var dbgTerminalPosition = de.GetTerminalPosition(_terminalDefinition);
+			//	int uvIndex = dbgTerminalPosition.y * terminal.Width + dbgTerminalPosition.x;
+			//	if (uvIndex >= 0 && uvIndex < uvs.Count)
+			//	{
+			//		uvs[uvIndex * 4 + 0] = new Vector2(de.UV_X, 1.0f - de.UV_Y); 
+			//		uvs[uvIndex * 4 + 1] = new Vector2(de.UV_X_2, 1.0f - de.UV_Y); 
+			//		uvs[uvIndex * 4 + 2] = new Vector2(de.UV_X_2, 1.0f - de.UV_Y_2);
+			//		uvs[uvIndex * 4 + 3] = new Vector2(de.UV_X, 1.0f - de.UV_Y_2);
+			//	}
+			//}
+			//else
+			//{
+			//	Debug.Log($"TerminalRenderer DrawBuffer no DebugElement found on Canvas");
+			//}
 			UpdateUVs();
 		}
 		private float _BlinkState = 0.0f;

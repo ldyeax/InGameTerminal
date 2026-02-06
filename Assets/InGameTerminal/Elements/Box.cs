@@ -13,6 +13,7 @@ namespace InGameTerminal.Elements
 		private const string RootMenu = "GameObject/InGameTerminal/";
 
 		public bool Solid = false;
+		public bool FancyBottomRightAndTopLeftCorners = false;
 
 		[MenuItem(RootMenu + "Box", false, 10)]
 		public static void CreateBox(MenuCommand cmd)

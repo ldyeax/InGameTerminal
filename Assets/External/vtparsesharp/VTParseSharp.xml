@@ -1,0 +1,239 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>VTParseSharp</name>
+    </assembly>
+    <members>
+        <member name="T:VTParseSharp.VTParseAction">
+            <summary>
+            Actions that can be performed during VT parsing.
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.None">
+            <summary>No action.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Clear">
+            <summary>Clear all parameters, intermediate characters, and the ignore flag.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Collect">
+            <summary>Collect an intermediate character.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.CsiDispatch">
+            <summary>Dispatch a CSI (Control Sequence Introducer) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.EscDispatch">
+            <summary>Dispatch an ESC (Escape) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Execute">
+            <summary>Execute a C0 or C1 control function.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Hook">
+            <summary>Start of a DCS (Device Control String) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Ignore">
+            <summary>Ignore the current byte.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.OscEnd">
+            <summary>End of an OSC (Operating System Command) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.OscPut">
+            <summary>Pass a character within an OSC sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.OscStart">
+            <summary>Start of an OSC (Operating System Command) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Param">
+            <summary>Process a parameter character (digit or semicolon).</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Print">
+            <summary>Print a character or Unicode codepoint to the screen.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Put">
+            <summary>Pass a character within a DCS sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Unhook">
+            <summary>End of a DCS (Device Control String) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseAction.Error">
+            <summary>An error occurred during parsing.</summary>
+        </member>
+        <member name="T:VTParseSharp.VTParseCallback">
+            <summary>
+            Callback delegate for VT parse events.
+            </summary>
+            <param name="parser">The parser instance that triggered the event.</param>
+            <param name="action">The action being performed.</param>
+            <param name="ch">The character or Unicode codepoint associated with the action (0 if none).</param>
+        </member>
+        <member name="T:VTParseSharp.VTParser">
+            <summary>
+            VT terminal escape sequence parser implementing Paul Williams' DEC compatible state machine.
+            See: http://www.vt100.net/emu/dec_ansi_parser
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParser.MaxIntermediateChars">
+            <summary>
+            Maximum number of intermediate characters that can be collected.
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParser.MaxParams">
+            <summary>
+            Maximum number of parameters that can be collected.
+            </summary>
+        </member>
+        <member name="P:VTParseSharp.VTParser.UserData">
+            <summary>
+            Gets or sets user-defined data associated with this parser instance.
+            </summary>
+        </member>
+        <member name="P:VTParseSharp.VTParser.State">
+            <summary>
+            Gets the current state of the parser.
+            </summary>
+        </member>
+        <member name="P:VTParseSharp.VTParser.IntermediateChars">
+            <summary>
+            Gets the intermediate characters collected during parsing.
+            </summary>
+        </member>
+        <member name="P:VTParseSharp.VTParser.NumIntermediateChars">
+            <summary>
+            Gets the number of intermediate characters collected.
+            </summary>
+        </member>
+        <member name="P:VTParseSharp.VTParser.Parameters">
+            <summary>
+            Gets the parameters collected during parsing.
+            </summary>
+        </member>
+        <member name="P:VTParseSharp.VTParser.NumParams">
+            <summary>
+            Gets the number of parameters collected.
+            </summary>
+        </member>
+        <member name="P:VTParseSharp.VTParser.IgnoreFlagged">
+            <summary>
+            Gets whether the ignore flag has been set (too many intermediate chars).
+            </summary>
+        </member>
+        <member name="M:VTParseSharp.VTParser.#ctor(VTParseSharp.VTParseCallback)">
+            <summary>
+            Creates a new VT parser with the specified callback.
+            </summary>
+            <param name="callback">The callback to invoke for parse events.</param>
+        </member>
+        <member name="M:VTParseSharp.VTParser.Reset">
+            <summary>
+            Resets the parser to its initial state.
+            </summary>
+        </member>
+        <member name="M:VTParseSharp.VTParser.Parse(System.ReadOnlySpan{System.Byte})">
+            <summary>
+            Parses the specified data buffer.
+            </summary>
+            <param name="data">The data to parse.</param>
+        </member>
+        <member name="M:VTParseSharp.VTParser.Parse(System.Byte)">
+            <summary>
+            Parses a single byte.
+            </summary>
+            <param name="ch">The byte to parse.</param>
+        </member>
+        <member name="M:VTParseSharp.VTParser.GetActionName(VTParseSharp.VTParseAction)">
+            <summary>
+            Gets the name of an action for debugging purposes.
+            </summary>
+            <param name="action">The action.</param>
+            <returns>The action name.</returns>
+        </member>
+        <member name="M:VTParseSharp.VTParser.GetStateName(VTParseSharp.VTParseState)">
+            <summary>
+            Gets the name of a state for debugging purposes.
+            </summary>
+            <param name="state">The state.</param>
+            <returns>The state name.</returns>
+        </member>
+        <member name="T:VTParseSharp.VTParseState">
+            <summary>
+            States of the VT parser state machine.
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.None">
+            <summary>No state (used as a sentinel value).</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.CsiEntry">
+            <summary>Entry point for a CSI (Control Sequence Introducer) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.CsiIgnore">
+            <summary>Ignoring a malformed CSI sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.CsiIntermediate">
+            <summary>Collecting intermediate characters within a CSI sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.CsiParam">
+            <summary>Collecting parameters within a CSI sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.DcsEntry">
+            <summary>Entry point for a DCS (Device Control String) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.DcsIgnore">
+            <summary>Ignoring a malformed DCS sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.DcsIntermediate">
+            <summary>Collecting intermediate characters within a DCS sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.DcsParam">
+            <summary>Collecting parameters within a DCS sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.DcsPassthrough">
+            <summary>Passthrough mode within a DCS sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.Escape">
+            <summary>Processing an ESC (Escape) sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.EscapeIntermediate">
+            <summary>Collecting intermediate characters within an ESC sequence.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.Ground">
+            <summary>Ground state; normal character processing.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.OscString">
+            <summary>Processing an OSC (Operating System Command) string.</summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseState.SosPmApcString">
+            <summary>Processing a SOS, PM, or APC string.</summary>
+        </member>
+        <member name="T:VTParseSharp.VTParseTable">
+            <summary>
+            Contains the state transition tables for the VT parser.
+            Generated from Paul Williams' DEC compatible state machine specification.
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseTable.ActionNames">
+            <summary>
+            Action names for debugging/display purposes.
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseTable.StateNames">
+            <summary>
+            State names for debugging/display purposes.
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseTable.EntryActions">
+            <summary>
+            Entry actions for each state. Indexed by (state - 1).
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseTable.ExitActions">
+            <summary>
+            Exit actions for each state. Indexed by (state - 1).
+            </summary>
+        </member>
+        <member name="F:VTParseSharp.VTParseTable.StateTable">
+            <summary>
+            The main state transition table. Indexed by [state-1][character].
+            Each byte encodes: lower nibble = action, upper nibble = new state.
+            </summary>
+        </member>
+    </members>
+</doc>

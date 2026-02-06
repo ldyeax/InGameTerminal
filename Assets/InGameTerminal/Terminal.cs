@@ -205,12 +205,15 @@ namespace InGameTerminal
 									}
 									else
 									{
-										// Above, left (no below, no right) - BottomRightCorner
-										cell.AtlasX = TerminalDefinition.BottomRightCornerX;
-										cell.AtlasY = TerminalDefinition.BottomRightCornerY;
-										cell.TerminalCommandType = TerminalCommandType.Box_BottomRightCorner;
-										cell.CharacterBank = TerminalCharacterBank.G1;
-										cell.HasTerminalCommand = true;
+										if (cell.AtlasX != 0 || cell.AtlasY != 4)
+										{
+											// Above, left (no below, no right) - BottomRightCorner
+											cell.AtlasX = TerminalDefinition.BottomRightCornerX;
+											cell.AtlasY = TerminalDefinition.BottomRightCornerY;
+											cell.TerminalCommandType = TerminalCommandType.Box_BottomRightCorner;
+											cell.CharacterBank = TerminalCharacterBank.G1;
+											cell.HasTerminalCommand = true;
+										}
 									}
 								}
 								else if (matchRight)
@@ -261,11 +264,14 @@ namespace InGameTerminal
 								else if (matchRight)
 								{
 									// Below, right (no above, no left) - TopLeftCorner
-									cell.AtlasX = TerminalDefinition.TopLeftCornerX;
-									cell.AtlasY = TerminalDefinition.TopLeftCornerY;
-									cell.TerminalCommandType = TerminalCommandType.Box_TopLeftCorner;
-									cell.CharacterBank = TerminalCharacterBank.G1;
-									cell.HasTerminalCommand = true;
+									if (cell.AtlasX != 1 || cell.AtlasY != 4)
+									{
+										cell.AtlasX = TerminalDefinition.TopLeftCornerX;
+										cell.AtlasY = TerminalDefinition.TopLeftCornerY;
+										cell.TerminalCommandType = TerminalCommandType.Box_TopLeftCorner;
+										cell.CharacterBank = TerminalCharacterBank.G1;
+										cell.HasTerminalCommand = true;
+									}
 								}
 								else
 								{
@@ -727,6 +733,46 @@ namespace InGameTerminal
 							&& position.y >= 0 && position.y < Height
 							&& !(text.Transparent && c == text.TransparentChar))
 						{
+							int chars_to_next_space = 0;
+							for (int j = i; j < contents.Length; j++)
+							{
+								char lookaheadChar = contents[j];
+								if (lookaheadChar == ' ' || lookaheadChar == '\n' || lookaheadChar == '\t')
+								{
+									break;
+								}
+								chars_to_next_space++;
+							}
+							if (chars_to_next_space < bounds.xMax && position.x + chars_to_next_space >= bounds.xMax)
+							{
+								// Debug.Log($"${chars_to_next_space} < ${bounds.xMax} && ${i} + ${chars_to_next_space} >= ${bounds.xMax}");
+								if (!text.Transparent)
+								{
+									for (int j = 0; j < chars_to_next_space; j++)
+									{
+										if (position.x + j >= bounds.xMax || position.x + j >= Width)
+										{
+											break;
+										}
+										ref TerminalBufferValue cell2 = ref terminalBuffer[
+											position.x + j,
+											position.y
+										];
+										cell2 = currentState;
+										cell2.CharacterBank = TerminalCharacterBank.ASCII;
+										cell2.HasTerminalCommand = false;
+										cell2.SetChar(TerminalDefinition, ' ');
+									}
+								}
+								position.x = bounds.xMin;
+								position.y++;
+								if (position.y >= bounds.yMax || position.y >= Height)
+								{
+									goto endText;
+								}
+								i--;
+								continue;
+							}
 							ref TerminalBufferValue cell = ref terminalBuffer[
 								position.x,
 								position.y
@@ -847,7 +893,9 @@ namespace InGameTerminal
 						bounds.yMin,
 						bounds.xMax - 1,
 						bounds.yMax - 1,
-						box.Solid
+						box.Solid,
+						box.FancyBottomRightAndTopLeftCorners,
+						currentState.ConnectorID
 					);
 					BuildBufferFromChildren(box.RectTransform, currentState, ref terminalState);
 					continue;
@@ -941,7 +989,8 @@ namespace InGameTerminal
 			ref TerminalState terminalState,
 			int terminalX,
 			int terminalY,
-			int connectorID = 0
+			int connectorID = 0,
+			bool fancyBottomRightAndTopLeftCorners = false
 		)
 		{
 			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
@@ -950,6 +999,11 @@ namespace InGameTerminal
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.TopLeftCornerX;
 			cell.AtlasY = TerminalDefinition.TopLeftCornerY;
+			if (fancyBottomRightAndTopLeftCorners)
+			{
+				cell.AtlasX = 1;
+				cell.AtlasY = 4;
+			}
 			cell.ConnectorID = connectorID;
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
@@ -961,7 +1015,8 @@ namespace InGameTerminal
 			ref TerminalState terminalState,
 			int terminalX,
 			int terminalY,
-			int connectorID = 0
+			int connectorID = 0,
+			bool fancy = false
 		)
 		{
 			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
@@ -970,6 +1025,11 @@ namespace InGameTerminal
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.TopRightCornerX;
 			cell.AtlasY = TerminalDefinition.TopRightCornerY;
+			if (fancy)
+			{
+				cell.AtlasX = 1;
+				cell.AtlasY = 4;
+			}
 			cell.ConnectorID = connectorID;
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
@@ -1001,7 +1061,8 @@ namespace InGameTerminal
 			ref TerminalState terminalState,
 			int terminalX,
 			int terminalY,
-			int connectorID = 0
+			int connectorID = 0,
+			bool fancyBottomRightAndTopLeftCorners = false
 		)
 		{
 			if (terminalX < 0 || terminalX >= Width || terminalY < 0 || terminalY >= Height)
@@ -1010,6 +1071,11 @@ namespace InGameTerminal
 			ref TerminalBufferValue cell = ref terminalBuffer[terminalX, terminalY];
 			cell.AtlasX = TerminalDefinition.BottomRightCornerX;
 			cell.AtlasY = TerminalDefinition.BottomRightCornerY;
+			if (fancyBottomRightAndTopLeftCorners)
+			{
+				cell.AtlasX = 0;
+				cell.AtlasY = 4;
+			}
 			cell.ConnectorID = connectorID;
 			cell.CharacterBank = TerminalCharacterBank.G1;
 			cell.HasTerminalCommand = true;
@@ -1141,7 +1207,9 @@ namespace InGameTerminal
 			int startTerminalY,
 			int endTerminalX,
 			int endTerminalY,
-			bool solid = false
+			bool solid = false,
+			bool fancyBottomRightAndTopLeftCorners = false,
+			int connectorID = 0
 		)
 		{
 			// Draw spaces if solid
@@ -1158,18 +1226,18 @@ namespace InGameTerminal
 			}
 
 			// Draw horizontal lines
-			DrawHorizontalLineToBuffer(ref terminalState, startTerminalY, startTerminalX + 1, endTerminalX - 1, 0);
-			DrawHorizontalLineToBuffer(ref terminalState, endTerminalY, startTerminalX + 1, endTerminalX - 1, 0);
+			DrawHorizontalLineToBuffer(ref terminalState, startTerminalY, startTerminalX + 1, endTerminalX - 1, connectorID);
+			DrawHorizontalLineToBuffer(ref terminalState, endTerminalY, startTerminalX + 1, endTerminalX - 1, connectorID);
 
 			// Draw vertical lines
-			DrawVerticalLineToBuffer(ref terminalState, startTerminalX, startTerminalY + 1, endTerminalY - 1, 0);
-			DrawVerticalLineToBuffer(ref terminalState, endTerminalX, startTerminalY + 1, endTerminalY - 1, 0);
+			DrawVerticalLineToBuffer(ref terminalState, startTerminalX, startTerminalY + 1, endTerminalY - 1, connectorID);
+			DrawVerticalLineToBuffer(ref terminalState, endTerminalX, startTerminalY + 1, endTerminalY - 1, connectorID);
 
 			// Draw corners
-			DrawTopLeftCornerToBuffer(ref terminalState, startTerminalX, startTerminalY, 0);
-			DrawTopRightCornerToBuffer(ref terminalState, endTerminalX, startTerminalY, 0);
-			DrawBottomLeftCornerToBuffer(ref terminalState, startTerminalX, endTerminalY, 0);
-			DrawBottomRightCornerToBuffer(ref terminalState, endTerminalX, endTerminalY, 0);
+			DrawTopLeftCornerToBuffer(ref terminalState, startTerminalX, startTerminalY, connectorID, fancyBottomRightAndTopLeftCorners);
+			DrawTopRightCornerToBuffer(ref terminalState, endTerminalX, startTerminalY, connectorID);
+			DrawBottomLeftCornerToBuffer(ref terminalState, startTerminalX, endTerminalY, connectorID);
+			DrawBottomRightCornerToBuffer(ref terminalState, endTerminalX, endTerminalY, connectorID, fancyBottomRightAndTopLeftCorners);
 		}
 
 		private void DrawConnectedAreaToBuffer(
