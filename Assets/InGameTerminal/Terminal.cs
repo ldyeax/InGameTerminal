@@ -331,7 +331,14 @@ namespace InGameTerminal
 			}
 		}
 		private List<Element> elementPool = new();
-		private List<TerminalCommand> terminalCommands = new List<TerminalCommand>();
+		/// <summary>
+		/// Uses the difference between the current terminal buffer and the previous terminal buffer
+		///		to build an optimized list of TerminalCommands that will update the actual terminal display
+		///		to match the current buffer state.
+		/// </summary>
+		/// <param name="terminalState">Contains old and new buffers</param>
+		/// <param name="terminalCommands">List to be populated</param>
+		/// <param name="redraw">Redraw screen from scratch</param>
 		public void BuildTerminalCommands(
 			ref TerminalState terminalState,
 			List<TerminalCommand> terminalCommands,
@@ -915,10 +922,18 @@ namespace InGameTerminal
 				}
 			}
 		}
+		/// <summary>
+		/// <para>Swaps current buffer to previous buffer;</para>
+		/// <para>
+		/// Builds a new terminal buffer based on the Unity UI elements in the hierarchy,
+		///		including things like building box drawing characters,
+		///		and writes to terminalState.terminalBuffer
+		///	</para>
+		/// </summary>
+		/// <param name="terminalState"></param>
 		public void BuildBuffer(ref TerminalState terminalState)
 		{
 			ref var terminalBuffer = ref terminalState.terminalBuffer;
-			ref var previousTerminalBuffer = ref terminalState.previousTerminalBuffer;
 
 			SwapAndClearBuffer(ref terminalState);
 
