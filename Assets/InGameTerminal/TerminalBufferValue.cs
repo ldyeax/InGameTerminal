@@ -18,14 +18,7 @@ namespace InGameTerminal
 			AtlasY = 0;
 			ConnectorID = 0;
 			TextAttributes = new TextAttributes();
-			DeviceBytes = 0;
-			DeviceByte1 = 0;
-			DeviceByte2 = 0;
-			DeviceByte3 = 0;
-			DeviceByte4 = 0;
 			CharacterBank = TerminalCharacterBank.ASCII;
-			HasTerminalCommand = false;
-			TerminalCommandType = TerminalCommandType.Char;
 		}
 		public readonly char GetChar(ITerminalDefinition terminalDefinition)
 		{
@@ -48,17 +41,11 @@ namespace InGameTerminal
 			AtlasY = charXY.y;
 		}
 		public TerminalCharacterBank CharacterBank;
-		public int DeviceBytes;
-		public byte DeviceByte1;
-		public byte DeviceByte2;
-		public byte DeviceByte3;
-		public byte DeviceByte4;
 		public int AtlasX;
 		public int AtlasY;
 		public int ConnectorID;
 		public TextAttributes TextAttributes;
-		public bool HasTerminalCommand;
-		public TerminalCommandType TerminalCommandType;
+
 
 		public readonly Color AttributesToVertexColor(bool isCursor = false)
 		{
@@ -74,14 +61,7 @@ namespace InGameTerminal
 				a.AtlasY == b.AtlasY &&
 				a.ConnectorID == b.ConnectorID &&
 				a.TextAttributes == b.TextAttributes &&
-				a.DeviceBytes == b.DeviceBytes &&
-				a.DeviceByte1 == b.DeviceByte1 &&
-				a.DeviceByte2 == b.DeviceByte2 &&
-				a.DeviceByte3 == b.DeviceByte3 &&
-				a.DeviceByte4 == b.DeviceByte4 &&
-				a.CharacterBank == b.CharacterBank &&
-				a.HasTerminalCommand == b.HasTerminalCommand &&
-				a.TerminalCommandType == b.TerminalCommandType;
+				a.CharacterBank == b.CharacterBank;
 		}
 		public static bool operator !=(TerminalBufferValue a, TerminalBufferValue b)
 		{
@@ -97,7 +77,7 @@ namespace InGameTerminal
 		}
 		public override readonly int GetHashCode()
 		{
-			string s = $"{AtlasX},{AtlasY},{ConnectorID},{TextAttributes.GetHashCode()},{DeviceBytes},{DeviceByte1},{DeviceByte2},{DeviceByte3},{DeviceByte4},{CharacterBank},{HasTerminalCommand},{TerminalCommandType}";
+			string s = $"{AtlasX},{AtlasY},{ConnectorID},{TextAttributes.GetHashCode()},{CharacterBank}";
 			return s.GetHashCode();
 		}
 
@@ -111,7 +91,7 @@ namespace InGameTerminal
 			{
 				throw new System.Exception("TerminalDefinition is null in TerminalBufferValue.IsSpace");
 			}
-			return GetChar(terminalDefinition) == ' ' && !HasTerminalCommand && CharacterBank == TerminalCharacterBank.ASCII;
+			return GetChar(terminalDefinition) == ' ' && CharacterBank == TerminalCharacterBank.ASCII;
 		}
 	}
 }
